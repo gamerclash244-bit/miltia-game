@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Ghost Fix</title>
+  <title>BaylerBay Ops - Global Leaderboard</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; touch-action: none; }
     #gameCanvas { display: none; cursor: crosshair; }
@@ -19,9 +19,53 @@
     .color-picker { display: flex; gap: 15px; margin-top: 10px; }
     .color-btn { width: 40px; height: 40px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
     .color-btn.selected { border-color: white; transform: scale(1.1); }
+    
+    /* --- NEW LEADERBOARD STYLING --- */
+    #leaderboardPanel {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 320px;
+      background: rgba(30, 40, 50, 0.9);
+      border: 2px solid #f1c40f;
+      border-radius: 10px;
+      padding: 20px;
+      color: white;
+      z-index: 20; 
+      display: block; 
+      box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+    }
+    .lb-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+    .lb-table th { border-bottom: 2px solid #555; padding-bottom: 8px; color: #bdc3c7; }
+    .lb-table td { padding: 8px 0; border-bottom: 1px solid #333; }
+    .lb-rank { font-weight: bold; color: #f1c40f; width: 30px; }
+    
+    @media (max-width: 800px) {
+      #leaderboardPanel {
+        position: relative; right: auto; top: auto; transform: none;
+        margin-top: 20px; width: 90%; max-width: 320px;
+      }
+    }
   </style>
 </head>
 <body>
+
+  <div id="leaderboardPanel">
+    <h3 style="margin-top: 0; color: #f1c40f; text-align: center; text-transform: uppercase;">Top Operators</h3>
+    <table class="lb-table">
+      <thead>
+        <tr>
+          <th>Callsign</th>
+          <th style="text-align: center;" title="Highest Kills in a Single Life">1-Life</th>
+          <th style="text-align: right;">Total</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboardBody">
+        <tr><td colspan="3" style="text-align:center; padding-top: 15px;">Connecting to database...</td></tr>
+      </tbody>
+    </table>
+  </div>
 
   <div id="mainMenu" class="menu-screen">
     <h1>BaylerBay Ops</h1>
@@ -64,18 +108,14 @@
     const menus = { main: document.getElementById('mainMenu'), settings: document.getElementById('settingsMenu'), death: document.getElementById('deathScreen') };
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const leaderboardPanel = document.getElementById('leaderboardPanel');
     
     const playBtn = document.getElementById('playBtn'); const settingsBtn = document.getElementById('settingsBtn');
     const saveSettingsBtn = document.getElementById('saveSettingsBtn'); const respawnBtn = document.getElementById('respawnBtn');
     const backMenuBtn = document.getElementById('backMenuBtn'); const playerNameInput = document.getElementById('playerNameInput');
     const colorBtns = document.querySelectorAll('.color-btn');
 
-    let socket = null;
-    let networkPlayers = {}; 
-    let networkBullets = [];
-    let isOnline = false;
-    let lastSyncTime = 0; 
-
+    let socket = null; let networkPlayers = {}; let networkBullets = []; let isOnline = false; let lastSyncTime = 0; 
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = []; 
 
@@ -84,164 +124,106 @@
     let mouseX = canvas.width / 2; let mouseY = canvas.height / 2;
 
     const biomes = [
-      { name: "GREENLANDS", endX: 2000, sky: [135, 206, 235], ground: "#55efc4", pType: "pollen", pColor: "rgba(255,255,255,0.6)" },
-      { name: "SAVANNA", endX: 4000, sky: [230, 126, 34], ground: "#d35400", pType: "dust", pColor: "rgba(211,84,0,0.5)" },
-      { name: "ASH WASTELAND", endX: 6000, sky: [44, 62, 80], ground: "#7f8c8d", pType: "ash", pColor: "rgba(30,30,30,0.8)" },
-      { name: "FROST PEAKS", endX: 8000, sky: [176, 224, 230], ground: "#ecf0f1", pType: "snow", pColor: "rgba(255,255,255,0.9)" },
-      { name: "THE VOID", endX: 10000, sky: [20, 0, 35], ground: "#8e44ad", pType: "spark", pColor: "rgba(155,89,182,0.8)" }
+      { name: "GREENLANDS", endX: 2000, sky: [135, 206, 235], ground: "#55efc4" }, { name: "SAVANNA", endX: 4000, sky: [230, 126, 34], ground: "#d35400" },
+      { name: "ASH WASTELAND", endX: 6000, sky: [44, 62, 80], ground: "#7f8c8d" }, { name: "FROST PEAKS", endX: 8000, sky: [176, 224, 230], ground: "#ecf0f1" },
+      { name: "THE VOID", endX: 10000, sky: [20, 0, 35], ground: "#8e44ad" }
     ];
-    
-    let targetBiome = biomes[0]; let currentSky = [...targetBiome.sky]; 
-    let biomePopupName = targetBiome.name; let biomePopupOpacity = 0; 
-    let particles = []; const maxParticles = 50; 
+    let targetBiome = biomes[0]; let currentSky = [...targetBiome.sky]; let biomePopupName = targetBiome.name; let biomePopupOpacity = 0; let particles = []; const maxParticles = 50; 
 
     const myPlayer = {
-      x: 100, y: worldHeight - 100, width: 40, height: 40, dx: 0, dy: 0, 
-      speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0, 
-      health: 100, maxHealth: 100, fuel: 250, maxFuel: 250,
-      ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, reloadDuration: 1500, lastShotTime: 0,
-      name: "Nizal Dhani PT", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0,
-      lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100
+      x: 100, y: worldHeight - 100, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0, 
+      health: 100, maxHealth: 100, fuel: 250, maxFuel: 250, ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, reloadDuration: 1500, lastShotTime: 0,
+      name: "Nizal Dhani PT", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0, lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100
     };
-
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
 
     function initNetwork() {
-      // >>> PASTE YOUR RENDER URL HERE <<<
-      const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
+      // >>> PASTE YOUR EXACT RENDER URL HERE <<<
+      const myRenderURL = "https://YOUR_RENDER_URL_HERE.onrender.com"; 
       const statusText = document.getElementById('connectionStatus');
 
-      if (typeof io === 'undefined') {
-        statusText.innerText = "Multiplayer script blocked. Play Offline.";
-        statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline";
-        isOnline = false; return;
-      }
-
+      if (typeof io === 'undefined') { statusText.innerText = "Multiplayer script blocked. Play Offline."; statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false; return; }
       if(socket) return; 
+      
       statusText.innerText = "Waking up server... (Can take 50 seconds)"; statusText.style.color = "#f39c12";
 
       try {
         socket = io(myRenderURL, { reconnectionAttempts: 12, reconnectionDelay: 5000 }); 
-        socket.on('connect', () => { 
-          isOnline = true; statusText.innerText = "Connected Online! Ready."; statusText.style.color = "#2ecc71"; 
-          playBtn.style.display = "block"; playBtn.innerText = "Deploy Online";
-        });
-
-        socket.on('currentPlayers', (players) => { 
-          networkPlayers = players; delete networkPlayers[socket.id]; 
-          for(let id in networkPlayers) { networkPlayers[id].targetX = networkPlayers[id].x; networkPlayers[id].targetY = networkPlayers[id].y; }
-        });
-        
-        socket.on('newPlayer', (playerInfo) => { 
-          networkPlayers[playerInfo.id] = playerInfo.player; 
-          networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
-        });
-
-        socket.on('playerMoved', (playerInfo) => { 
-          if(networkPlayers[playerInfo.id]) {
-            networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
-            networkPlayers[playerInfo.id].aimAngle = playerInfo.player.aimAngle;
-            networkPlayers[playerInfo.id].health = playerInfo.player.health;
-            networkPlayers[playerInfo.id].name = playerInfo.player.name;
-            networkPlayers[playerInfo.id].color = playerInfo.player.color;
-          }
-        });
-
+        socket.on('connect', () => { isOnline = true; statusText.innerText = "Connected Online! Ready."; statusText.style.color = "#2ecc71"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Online"; });
+        socket.on('currentPlayers', (players) => { networkPlayers = players; delete networkPlayers[socket.id]; for(let id in networkPlayers) { networkPlayers[id].targetX = networkPlayers[id].x; networkPlayers[id].targetY = networkPlayers[id].y; } });
+        socket.on('newPlayer', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y; });
+        socket.on('playerMoved', (playerInfo) => { if(networkPlayers[playerInfo.id]) { networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y; networkPlayers[playerInfo.id].aimAngle = playerInfo.player.aimAngle; networkPlayers[playerInfo.id].health = playerInfo.player.health; networkPlayers[playerInfo.id].name = playerInfo.player.name; networkPlayers[playerInfo.id].color = playerInfo.player.color; } });
         socket.on('networkBullet', (b) => { networkBullets.push(b); });
         socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
+        socket.on('reconnect_failed', () => { statusText.innerText = "Server unreachable. Play local mode."; statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false; });
         
-        socket.on('reconnect_failed', () => {
-          statusText.innerText = "Server unreachable. Play local mode."; statusText.style.color = "#e74c3c"; 
-          playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false;
+        // RECEIVE SCOREBOARD UPDATE
+        socket.on('leaderboardUpdate', (topPlayers) => {
+          let html = '';
+          topPlayers.forEach((p, index) => {
+            let trophy = index === 0 ? '👑' : (index + 1) + '.';
+            html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align: center; color: #55efc4; font-weight: bold;">${p.bestStreak}</td><td style="text-align: right;">${p.totalKills}</td></tr>`;
+          });
+          if(topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center;">No kills yet. Be the first!</td></tr>';
+          document.getElementById('leaderboardBody').innerHTML = html;
         });
       } catch (err) { statusText.innerText = "Network Error."; playBtn.style.display = "block"; isOnline = false; }
     }
 
     initNetwork();
 
-    settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
+    settingsBtn.addEventListener('click', () => { 
+      menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; 
+      leaderboardPanel.style.display = 'none'; // Hide leaderboard while in settings
+    });
     colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
-    saveSettingsBtn.addEventListener('click', () => { myPlayer.name = playerNameInput.value.trim() || "Unknown"; menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
-    playBtn.addEventListener('click', () => { menus.main.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); });
-    backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; });
-    respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
+    saveSettingsBtn.addEventListener('click', () => { 
+      myPlayer.name = playerNameInput.value.trim() || "Unknown"; 
+      menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; 
+      leaderboardPanel.style.display = 'block'; 
+    });
+    
+    playBtn.addEventListener('click', () => { 
+      menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; // Hide when playing
+      canvas.style.display = 'block'; resetRun(); 
+      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); 
+    });
+    backMenuBtn.addEventListener('click', () => { 
+      menus.death.style.display = 'none'; menus.main.style.display = 'flex'; 
+      leaderboardPanel.style.display = 'block'; 
+    });
+    respawnBtn.addEventListener('click', () => { 
+      menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none';
+      canvas.style.display = 'block'; resetRun(); 
+    });
 
     function resetRun() {
-      isPlaying = true;
-      myPlayer.x = 100; myPlayer.y = worldHeight - 200; myPlayer.dx = 0; myPlayer.dy = 0;
-      myPlayer.health = myPlayer.maxHealth; myPlayer.fuel = myPlayer.maxFuel;
-      myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0;
-      bullets = []; networkBullets = [];
-      targetBiome = biomes[0]; currentSky = [...targetBiome.sky]; biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5;
-      joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
-      buildMap(); initParticles(); gameLoop();
+      isPlaying = true; myPlayer.x = 100; myPlayer.y = worldHeight - 200; myPlayer.dx = 0; myPlayer.dy = 0; myPlayer.health = myPlayer.maxHealth; myPlayer.fuel = myPlayer.maxFuel; myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0; bullets = []; networkBullets = []; targetBiome = biomes[0]; currentSky = [...targetBiome.sky]; biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5; joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false; buildMap(); initParticles(); gameLoop();
     }
 
-    // THE GHOST FIX: Broadcast death before pulling to menu
     function killPlayer() {
-      isPlaying = false; 
-      myPlayer.health = 0; // Force exact zero
+      isPlaying = false; myPlayer.health = 0; 
       
-      // Fire final signal to server so you instantly vanish for everyone else
+      // EMIT DEATH AND SCORE TO SERVER
       if(isOnline && socket && socket.connected) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0 });
+        socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
       }
 
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
-      document.getElementById('finalKillsText').innerText = `Kills: ${myPlayer.kills}`;
-      canvas.style.display = 'none'; menus.death.style.display = 'flex';
+      document.getElementById('finalKillsText').innerText = `Your Streak: ${myPlayer.kills}`;
+      canvas.style.display = 'none'; 
+      menus.death.style.display = 'flex';
+      leaderboardPanel.style.display = 'block'; // Show scoreboard on death screen
     }
 
     function initParticles() { particles = []; for(let i=0; i<maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 }); }
-    
-    function updateParticles() {
-      let time = Date.now() * 0.002;
-      for (let p of particles) {
-        if (targetBiome.pType === "pollen") { p.vy = -0.5; p.vx = Math.sin(time + p.driftOffset) * 0.5; } 
-        else if (targetBiome.pType === "dust") { p.vy = 0; p.vx = 4 + Math.random() * 2; } 
-        else if (targetBiome.pType === "ash") { p.vy = 3; p.vx = 0.5; } 
-        else if (targetBiome.pType === "snow") { p.vy = 1.5; p.vx = Math.sin(time + p.driftOffset) * 1.5; } 
-        else if (targetBiome.pType === "spark") { p.vy = -2; p.vx = 0; }
-        
-        p.x += p.vx; p.y += p.vy;
-        if (p.y > canvas.height + 10) p.y = -10; 
-        if (p.y < -10) p.y = canvas.height + 10;
-        if (p.x > canvas.width + 10) p.x = -10; 
-        if (p.x < -10) p.x = canvas.width + 10;
-      }
-    }
-
+    function updateParticles() { let time = Date.now() * 0.002; for (let p of particles) { if (targetBiome.pType === "pollen") { p.vy = -0.5; p.vx = Math.sin(time + p.driftOffset) * 0.5; } else if (targetBiome.pType === "dust") { p.vy = 0; p.vx = 4 + Math.random() * 2; } else if (targetBiome.pType === "ash") { p.vy = 3; p.vx = 0.5; } else if (targetBiome.pType === "snow") { p.vy = 1.5; p.vx = Math.sin(time + p.driftOffset) * 1.5; } else if (targetBiome.pType === "spark") { p.vy = -2; p.vx = 0; } p.x += p.vx; p.y += p.vy; if (p.y > canvas.height + 10) p.y = -10; if (p.y < -10) p.y = canvas.height + 10; if (p.x > canvas.width + 10) p.x = -10; if (p.x < -10) p.x = canvas.width + 10; } }
     function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; initParticles(); }
     window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
-    function mulberry32(a) {
-        return function() {
-          var t = a += 0x6D2B79F5;
-          t = Math.imul(t ^ t >>> 15, t | 1);
-          t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-          return ((t ^ t >>> 14) >>> 0) / 4294967296;
-        }
-    }
-
-    function buildMap() {
-      map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight - 50, w: worldWidth, h: 50, type: "floor" } ];
-      powerups = [];
-      let currentX = 300; let rand = mulberry32(12345);
-      
-      while (currentX < worldWidth - 500) {
-        let platWidth = 150 + rand() * 300; let platY = worldHeight - 150 - (rand() * 600); 
-        map.push({ x: currentX, y: platY, w: platWidth, h: 30, type: "plat" });
-        if (rand() > 0.6) {
-            let cw = 40 + rand() * 30; let ch = 50 + rand() * 30;
-            map.push({ x: currentX + (platWidth / 2) - (cw / 2), y: platY - ch, w: cw, h: ch, type: "cover" });
-        }
-        if (rand() > 0.7) {
-            let pType = rand() > 0.5 ? 'health' : 'jetpack';
-            powerups.push({ x: currentX + (platWidth / 2) - 15, y: platY - 30, w: 30, h: 30, type: pType });
-        }
-        currentX += platWidth + 50 + (rand() * 200); 
-      }
-    }
+    function mulberry32(a) { return function() { var t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; } }
+    function buildMap() { map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight - 50, w: worldWidth, h: 50, type: "floor" } ]; powerups = []; let currentX = 300; let rand = mulberry32(12345); while (currentX < worldWidth - 500) { let platWidth = 150 + rand() * 300; let platY = worldHeight - 150 - (rand() * 600); map.push({ x: currentX, y: platY, w: platWidth, h: 30, type: "plat" }); if (rand() > 0.6) { let cw = 40 + rand() * 30; let ch = 50 + rand() * 30; map.push({ x: currentX + (platWidth / 2) - (cw / 2), y: platY - ch, w: cw, h: ch, type: "cover" }); } if (rand() > 0.7) { let pType = rand() > 0.5 ? 'health' : 'jetpack'; powerups.push({ x: currentX + (platWidth / 2) - 15, y: platY - 30, w: 30, h: 30, type: pType }); } currentX += platWidth + 50 + (rand() * 200); } }
 
     window.addEventListener('keydown', (e) => { if (!isPlaying) return; const key = e.key.toLowerCase(); if (key === 'a' || key === 'arrowleft') keys.a = true; if (key === 'd' || key === 'arrowright') keys.d = true; if (key === 'w' || key === 'arrowup' || key === ' ') keys.w = true; });
     window.addEventListener('keyup', (e) => { const key = e.key.toLowerCase(); if (key === 'a' || key === 'arrowleft') keys.a = false; if (key === 'd' || key === 'arrowright') keys.d = false; if (key === 'w' || key === 'arrowup' || key === ' ') keys.w = false; });
@@ -252,138 +234,64 @@
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isPlaying) return; for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier === joyLeft.touchId) { let dx = t.clientX - joyLeft.startX; let dy = t.clientY - joyLeft.startY; let dist = Math.hypot(dx, dy); if (dist > 50) { dx = (dx/dist)*50; dy = (dy/dist)*50; } joyLeft.dx = dx; joyLeft.dy = dy; } if (joyRight.active && t.identifier === joyRight.touchId) { let dx = t.clientX - joyRight.startX; let dy = t.clientY - joyRight.startY; let dist = Math.hypot(dx, dy); if (dist > 50) { dx = (dx/dist)*50; dy = (dy/dist)*50; } joyRight.dx = dx; joyRight.dy = dy; } } }, {passive: false});
     canvas.addEventListener('touchend', (e) => { e.preventDefault(); for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier === joyLeft.touchId) { joyLeft.active = false; keys.a = false; keys.d = false; keys.w = false; } if (joyRight.active && t.identifier === joyRight.touchId) { joyRight.active = false; keys.fire = false; } } }, {passive: false});
 
-    function shoot() { 
-      let bx = myPlayer.x + myPlayer.width/2; let by = myPlayer.y + myPlayer.height/2;
-      let bvx = Math.cos(myPlayer.aimAngle) * 16; let bvy = Math.sin(myPlayer.aimAngle) * 16;
-      bullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius: 4 }); 
-      if(isOnline && socket && socket.connected) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius: 4 });
-    }
+    function shoot() { let bx = myPlayer.x + myPlayer.width/2; let by = myPlayer.y + myPlayer.height/2; let bvx = Math.cos(myPlayer.aimAngle) * 16; let bvy = Math.sin(myPlayer.aimAngle) * 16; bullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius: 4 }); if(isOnline && socket && socket.connected) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius: 4 }); }
 
     function update() {
       if (joyLeft.active) { keys.a = joyLeft.dx < -15; keys.d = joyLeft.dx > 15; keys.w = joyLeft.dy < -15; }
-      if (joyRight.active) { myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); keys.fire = Math.hypot(joyRight.dx, joyRight.dy) > 20; } 
-      else { const worldMouseX = mouseX + camera.x; const worldMouseY = mouseY + camera.y; myPlayer.aimAngle = Math.atan2(worldMouseY - (myPlayer.y + myPlayer.height/2), worldMouseX - (myPlayer.x + myPlayer.width/2)); }
+      if (joyRight.active) { myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); keys.fire = Math.hypot(joyRight.dx, joyRight.dy) > 20; } else { const worldMouseX = mouseX + camera.x; const worldMouseY = mouseY + camera.y; myPlayer.aimAngle = Math.atan2(worldMouseY - (myPlayer.y + myPlayer.height/2), worldMouseX - (myPlayer.x + myPlayer.width/2)); }
 
       let newBiome = targetBiome; for (let b of biomes) { if (myPlayer.x < b.endX) { newBiome = b; break; } }
       if (newBiome !== targetBiome) { targetBiome = newBiome; biomePopupName = targetBiome.name; biomePopupOpacity = 2.5; }
       if (biomePopupOpacity > 0) biomePopupOpacity -= 0.02;
 
-      currentSky[0] += (targetBiome.sky[0] - currentSky[0]) * 0.05; currentSky[1] += (targetBiome.sky[1] - currentSky[1]) * 0.05; currentSky[2] += (targetBiome.sky[2] - currentSky[2]) * 0.05;
-      updateParticles();
+      currentSky[0] += (targetBiome.sky[0] - currentSky[0]) * 0.05; currentSky[1] += (targetBiome.sky[1] - currentSky[1]) * 0.05; currentSky[2] += (targetBiome.sky[2] - currentSky[2]) * 0.05; updateParticles();
 
-      let prevX = myPlayer.x;
-      if (keys.a) myPlayer.x -= myPlayer.speed; 
-      if (keys.d) myPlayer.x += myPlayer.speed; 
-
+      let prevX = myPlayer.x; if (keys.a) myPlayer.x -= myPlayer.speed; if (keys.d) myPlayer.x += myPlayer.speed; 
       for(let obj of map) { if (myPlayer.x < obj.x + obj.w && myPlayer.x + myPlayer.width > obj.x && myPlayer.y < obj.y + obj.h && myPlayer.y + myPlayer.height > obj.y) myPlayer.x = prevX; }
-      
-      myPlayer.dy += myPlayer.gravity;
-      let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > Date.now();
+      myPlayer.dy += myPlayer.gravity; let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > Date.now();
       if (keys.w && (myPlayer.fuel > 0 || hasUnlimitedJetpack)) { myPlayer.dy -= myPlayer.jetpackForce; if (!hasUnlimitedJetpack) myPlayer.fuel -= 1.0; } else if (!keys.w && myPlayer.fuel < myPlayer.maxFuel) { myPlayer.fuel += 1.5; }
-      
       myPlayer.y += myPlayer.dy;
       for(let obj of map) { if (myPlayer.x < obj.x + obj.w && myPlayer.x + myPlayer.width > obj.x && myPlayer.y < obj.y + obj.h && myPlayer.y + myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
 
-      // Smooth Lerping
-      for (let id in networkPlayers) {
-        let np = networkPlayers[id];
-        if (np.health <= 0) continue; // Skip ghost calculations
-        if (np.targetX !== undefined && np.targetY !== undefined) {
-            np.x += (np.targetX - np.x) * 0.3;
-            np.y += (np.targetY - np.y) * 0.3;
-        }
-      }
+      for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health <= 0) continue; if (np.targetX !== undefined && np.targetY !== undefined) { np.x += (np.targetX - np.x) * 0.3; np.y += (np.targetY - np.y) * 0.3; } }
 
       let syncNeeded = Math.abs(myPlayer.x - myPlayer.lastX) > 1 || Math.abs(myPlayer.y - myPlayer.lastY) > 1 || myPlayer.aimAngle !== myPlayer.lastAim || myPlayer.health !== myPlayer.lastHealth;
-      if(isOnline && socket && socket.connected && Date.now() - lastSyncTime > 30 && syncNeeded) {
-        socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health });
-        lastSyncTime = Date.now();
-        myPlayer.lastX = myPlayer.x; myPlayer.lastY = myPlayer.y; myPlayer.lastAim = myPlayer.aimAngle; myPlayer.lastHealth = myPlayer.health;
-      }
+      if(isOnline && socket && socket.connected && Date.now() - lastSyncTime > 30 && syncNeeded) { socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health }); lastSyncTime = Date.now(); myPlayer.lastX = myPlayer.x; myPlayer.lastY = myPlayer.y; myPlayer.lastAim = myPlayer.aimAngle; myPlayer.lastHealth = myPlayer.health; }
 
-      for(let i = powerups.length - 1; i >= 0; i--) {
-        let p = powerups[i];
-        if (myPlayer.x < p.x + p.w && myPlayer.x + myPlayer.width > p.x && myPlayer.y < p.y + p.h && myPlayer.y + myPlayer.height > p.y) {
-          if (p.type === 'health') { myPlayer.health = Math.min(myPlayer.maxHealth, myPlayer.health + 50); } else if (p.type === 'jetpack') { myPlayer.unlimitedFuelTimer = Date.now() + 10000; myPlayer.fuel = myPlayer.maxFuel; }
-          powerups.splice(i, 1); 
-        }
-      }
+      for(let i = powerups.length - 1; i >= 0; i--) { let p = powerups[i]; if (myPlayer.x < p.x + p.w && myPlayer.x + myPlayer.width > p.x && myPlayer.y < p.y + p.h && myPlayer.y + myPlayer.height > p.y) { if (p.type === 'health') { myPlayer.health = Math.min(myPlayer.maxHealth, myPlayer.health + 50); } else if (p.type === 'jetpack') { myPlayer.unlimitedFuelTimer = Date.now() + 10000; myPlayer.fuel = myPlayer.maxFuel; } powerups.splice(i, 1); } }
 
       if (myPlayer.isReloading && Date.now() - myPlayer.reloadStartTime > myPlayer.reloadDuration) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
-      if (keys.fire && Date.now() - myPlayer.lastShotTime > 150) { 
-        if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = Date.now(); if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = Date.now(); } }
-      }
+      if (keys.fire && Date.now() - myPlayer.lastShotTime > 150) { if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = Date.now(); if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = Date.now(); } } }
 
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for(let obj of map) { if (b.x > obj.x && b.x < obj.x + obj.w && b.y > obj.y && b.y < obj.y + obj.h) { destroyed = true; break; } }
-        
-        if (!destroyed) {
-          for (let id in networkPlayers) { 
-            let np = networkPlayers[id]; 
-            // PREVENT SHOOTING GHOSTS
-            if (np.health <= 0) continue; 
-            if (b.x > np.x && b.x < np.x + 40 && b.y > np.y && b.y < np.y + 40) { 
-              destroyed = true; 
-              if (np.health <= 15) myPlayer.kills++;
-              break; 
-            } 
-          }
-        }
+        if (!destroyed) { for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health <= 0) continue; if (b.x > np.x && b.x < np.x + 40 && b.y > np.y && b.y < np.y + 40) { destroyed = true; if (np.health <= 15) myPlayer.kills++; break; } } }
         if (destroyed || b.x < 0 || b.x > worldWidth || b.y < 0 || b.y > worldHeight) bullets.splice(i, 1);
       }
 
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for(let obj of map) { if (b.x > obj.x && b.x < obj.x + obj.w && b.y > obj.y && b.y < obj.y + obj.h) { destroyed = true; break; } }
-        if (!destroyed && b.x > myPlayer.x && b.x < myPlayer.x + myPlayer.width && b.y > myPlayer.y && b.y < myPlayer.y + myPlayer.height) {
-            myPlayer.health -= 15; destroyed = true;
-            if (myPlayer.health <= 0) killPlayer(); 
-        }
+        if (!destroyed && b.x > myPlayer.x && b.x < myPlayer.x + myPlayer.width && b.y > myPlayer.y && b.y < myPlayer.y + myPlayer.height) { myPlayer.health -= 15; destroyed = true; if (myPlayer.health <= 0) killPlayer(); }
         if (destroyed || b.x < 0 || b.x > worldWidth || b.y < 0 || b.y > worldHeight) networkBullets.splice(i, 1);
       }
-
-      camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width / 2 - canvas.width / 2, worldWidth - canvas.width));
-      camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height / 2 - canvas.height / 2, worldHeight - canvas.height));
+      camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width / 2 - canvas.width / 2, worldWidth - canvas.width)); camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height / 2 - canvas.height / 2, worldHeight - canvas.height));
     }
 
-    function drawJoystick(joy, color) {
-        if (!joy.active) return;
-        ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = 'white';
-        ctx.beginPath(); ctx.arc(joy.startX, joy.startY, 50, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = color; ctx.beginPath(); ctx.arc(joy.startX + joy.dx, joy.startY + joy.dy, 25, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
-    }
+    function drawJoystick(joy, color) { if (!joy.active) return; ctx.save(); ctx.globalAlpha = 0.4; ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(joy.startX, joy.startY, 50, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = color; ctx.beginPath(); ctx.arc(joy.startX + joy.dx, joy.startY + joy.dy, 25, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
 
     function draw() {
-      ctx.fillStyle = `rgb(${Math.round(currentSky[0])}, ${Math.round(currentSky[1])}, ${Math.round(currentSky[2])})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = targetBiome.pColor;
-      for(let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
-
+      ctx.fillStyle = `rgb(${Math.round(currentSky[0])}, ${Math.round(currentSky[1])}, ${Math.round(currentSky[2])})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = targetBiome.pColor; for(let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
       ctx.save(); ctx.translate(-camera.x, -camera.y);
 
       const viewLeft = camera.x - 100; const viewRight = camera.x + canvas.width + 100;
-
-      for (let p of powerups) {
-        if (p.x > viewRight || p.x + p.w < viewLeft) continue;
-        if (p.type === 'health') { ctx.fillStyle = 'white'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.fillStyle = '#e74c3c'; ctx.fillRect(p.x + 10, p.y + 4, 10, 22); ctx.fillRect(p.x + 4, p.y + 10, 22, 10);
-        } else if (p.type === 'jetpack') { ctx.fillStyle = '#00cec9'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.fillText('INF', p.x + 15, p.y + 20); }
-      }
-
-      for(let obj of map) {
-        if (obj.x > viewRight || obj.x + obj.w < viewLeft) continue;
-        if (obj.type === "cover") { ctx.fillStyle = '#2c3e50'; ctx.fillRect(obj.x, obj.y, obj.w, obj.h); ctx.strokeStyle = '#000'; ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
-        } else { ctx.fillStyle = '#34495e'; ctx.fillRect(obj.x, obj.y, obj.w, obj.h); let platformTopColor = "#55efc4"; for (let b of biomes) { if (obj.x < b.endX) { platformTopColor = b.ground; break; } } ctx.fillStyle = platformTopColor; ctx.fillRect(obj.x, obj.y, obj.w, 6); }
-      }
+      for (let p of powerups) { if (p.x > viewRight || p.x + p.w < viewLeft) continue; if (p.type === 'health') { ctx.fillStyle = 'white'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.fillStyle = '#e74c3c'; ctx.fillRect(p.x + 10, p.y + 4, 10, 22); ctx.fillRect(p.x + 4, p.y + 10, 22, 10); } else if (p.type === 'jetpack') { ctx.fillStyle = '#00cec9'; ctx.fillRect(p.x, p.y, p.w, p.h); ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.fillText('INF', p.x + 15, p.y + 20); } }
+      for(let obj of map) { if (obj.x > viewRight || obj.x + obj.w < viewLeft) continue; if (obj.type === "cover") { ctx.fillStyle = '#2c3e50'; ctx.fillRect(obj.x, obj.y, obj.w, obj.h); ctx.strokeStyle = '#000'; ctx.strokeRect(obj.x, obj.y, obj.w, obj.h); } else { ctx.fillStyle = '#34495e'; ctx.fillRect(obj.x, obj.y, obj.w, obj.h); let platformTopColor = "#55efc4"; for (let b of biomes) { if (obj.x < b.endX) { platformTopColor = b.ground; break; } } ctx.fillStyle = platformTopColor; ctx.fillRect(obj.x, obj.y, obj.w, 6); } }
 
       for (let id in networkPlayers) {
-        let np = networkPlayers[id]; 
-        // THE GHOST FIX: If their health is 0, DO NOT draw them!
-        if (np.health <= 0) continue; 
-        if (np.x > viewRight || np.x + 40 < viewLeft) continue;
-        
+        let np = networkPlayers[id]; if (np.health <= 0) continue; if (np.x > viewRight || np.x + 40 < viewLeft) continue;
         ctx.save(); ctx.translate(np.x + 20, np.y + 20); ctx.rotate(np.aimAngle); ctx.fillStyle = '#bdc3c7'; ctx.fillRect(0, -4, 35, 8); ctx.restore();
         ctx.fillStyle = np.color; ctx.fillRect(np.x, np.y, 40, 40); ctx.fillStyle = 'red'; ctx.fillRect(np.x, np.y - 10, 40, 4); ctx.fillStyle = '#2ecc71'; ctx.fillRect(np.x, np.y - 10, 40 * (np.health / 100), 4);
         ctx.fillStyle = 'white'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.fillText(np.name, np.x + 20, np.y - 15);
@@ -393,23 +301,18 @@
       ctx.save(); ctx.translate(centerX, centerY); ctx.rotate(myPlayer.aimAngle); ctx.fillStyle = '#bdc3c7'; ctx.fillRect(0, -4, 35, 8); ctx.restore();
       ctx.fillStyle = myPlayer.color; ctx.fillRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height);
       ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.fillText(myPlayer.name, centerX, myPlayer.y - 10);
-
       if (myPlayer.isReloading) { let reloadProgress = (Date.now() - myPlayer.reloadStartTime) / myPlayer.reloadDuration; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(myPlayer.x - 10, myPlayer.y - 25, 60, 6); ctx.fillStyle = '#f1c40f'; ctx.fillRect(myPlayer.x - 10, myPlayer.y - 25, 60 * reloadProgress, 6); }
 
       ctx.fillStyle = '#f1c40f'; bullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke(); });
       ctx.fillStyle = '#e74c3c'; networkBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); });
       ctx.restore(); 
 
-      // UI HUD
-      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 20, 140, 12);
-      ctx.fillStyle = '#2ecc71'; ctx.fillRect(20, 20, (myPlayer.health / myPlayer.maxHealth) * 140, 12); ctx.fillStyle = 'white'; ctx.font = '10px Arial'; ctx.fillText('HP', 22, 30);
-      let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > Date.now(); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 40, 140, 12);
-      ctx.fillStyle = hasUnlimitedJetpack ? '#00cec9' : '#3498db'; ctx.fillRect(20, 40, hasUnlimitedJetpack ? 140 : (myPlayer.fuel / myPlayer.maxFuel) * 140, 12); ctx.fillStyle = 'white'; ctx.fillText(hasUnlimitedJetpack ? 'INF JET' : 'JET', 22, 50);
+      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 20, 140, 12); ctx.fillStyle = '#2ecc71'; ctx.fillRect(20, 20, (myPlayer.health / myPlayer.maxHealth) * 140, 12); ctx.fillStyle = 'white'; ctx.font = '10px Arial'; ctx.fillText('HP', 22, 30);
+      let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > Date.now(); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 40, 140, 12); ctx.fillStyle = hasUnlimitedJetpack ? '#00cec9' : '#3498db'; ctx.fillRect(20, 40, hasUnlimitedJetpack ? 140 : (myPlayer.fuel / myPlayer.maxFuel) * 140, 12); ctx.fillStyle = 'white'; ctx.fillText(hasUnlimitedJetpack ? 'INF JET' : 'JET', 22, 50);
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 60, 140, 18); ctx.fillStyle = (myPlayer.ammo === 0) ? '#e74c3c' : 'white'; ctx.font = 'bold 12px Arial'; ctx.fillText(myPlayer.isReloading ? "RELOADING..." : `AMMO: ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, 25, 73);
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 85, 140, 18); ctx.fillStyle = '#f1c40f'; ctx.fillText(`KILLS: ${myPlayer.kills}`, 25, 98);
 
       if (biomePopupOpacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(biomePopupOpacity, 1.0); ctx.textAlign = 'center'; ctx.fillStyle = 'white'; ctx.font = 'bold 40px Arial'; ctx.fillText(biomePopupName, canvas.width / 2, canvas.height * 0.25); ctx.fillRect(canvas.width / 2 - 150, canvas.height * 0.25 + 10, 300, 4); ctx.restore(); }
-
       drawJoystick(joyLeft, '#3498db'); drawJoystick(joyRight, '#e74c3c'); 
     }
 
