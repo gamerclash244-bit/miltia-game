@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Global Leaderboard</title>
+  <title>BaylerBay Ops - Final Build</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; touch-action: none; }
     #gameCanvas { display: none; cursor: crosshair; }
@@ -20,21 +20,10 @@
     .color-btn { width: 40px; height: 40px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
     .color-btn.selected { border-color: white; transform: scale(1.1); }
     
-    /* --- NEW LEADERBOARD STYLING --- */
     #leaderboardPanel {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 320px;
-      background: rgba(30, 40, 50, 0.9);
-      border: 2px solid #f1c40f;
-      border-radius: 10px;
-      padding: 20px;
-      color: white;
-      z-index: 20; 
-      display: block; 
-      box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+      position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 320px;
+      background: rgba(30, 40, 50, 0.9); border: 2px solid #f1c40f; border-radius: 10px;
+      padding: 20px; color: white; z-index: 20; display: block; box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
     }
     .lb-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
     .lb-table th { border-bottom: 2px solid #555; padding-bottom: 8px; color: #bdc3c7; }
@@ -42,10 +31,7 @@
     .lb-rank { font-weight: bold; color: #f1c40f; width: 30px; }
     
     @media (max-width: 800px) {
-      #leaderboardPanel {
-        position: relative; right: auto; top: auto; transform: none;
-        margin-top: 20px; width: 90%; max-width: 320px;
-      }
+      #leaderboardPanel { position: relative; right: auto; top: auto; transform: none; margin-top: 20px; width: 90%; max-width: 320px; }
     }
   </style>
 </head>
@@ -54,16 +40,8 @@
   <div id="leaderboardPanel">
     <h3 style="margin-top: 0; color: #f1c40f; text-align: center; text-transform: uppercase;">Top Operators</h3>
     <table class="lb-table">
-      <thead>
-        <tr>
-          <th>Callsign</th>
-          <th style="text-align: center;" title="Highest Kills in a Single Life">1-Life</th>
-          <th style="text-align: right;">Total</th>
-        </tr>
-      </thead>
-      <tbody id="leaderboardBody">
-        <tr><td colspan="3" style="text-align:center; padding-top: 15px;">Connecting to database...</td></tr>
-      </tbody>
+      <thead><tr><th>Callsign</th><th style="text-align: center;" title="Highest Kills in a Single Life">1-Life</th><th style="text-align: right;">Total</th></tr></thead>
+      <tbody id="leaderboardBody"><tr><td colspan="3" style="text-align:center; padding-top: 15px;">Connecting to database...</td></tr></tbody>
     </table>
   </div>
 
@@ -138,8 +116,8 @@
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
 
     function initNetwork() {
-      // >>> PASTE YOUR EXACT RENDER URL HERE <<<
-      const myRenderURL = "https://YOUR_RENDER_URL_HERE.onrender.com"; 
+      // Direct connection to your specific Render backend
+      const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
       const statusText = document.getElementById('connectionStatus');
 
       if (typeof io === 'undefined') { statusText.innerText = "Multiplayer script blocked. Play Offline."; statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false; return; }
@@ -157,7 +135,6 @@
         socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
         socket.on('reconnect_failed', () => { statusText.innerText = "Server unreachable. Play local mode."; statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false; });
         
-        // RECEIVE SCOREBOARD UPDATE
         socket.on('leaderboardUpdate', (topPlayers) => {
           let html = '';
           topPlayers.forEach((p, index) => {
@@ -172,30 +149,13 @@
 
     initNetwork();
 
-    settingsBtn.addEventListener('click', () => { 
-      menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; 
-      leaderboardPanel.style.display = 'none'; // Hide leaderboard while in settings
-    });
+    settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
     colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
-    saveSettingsBtn.addEventListener('click', () => { 
-      myPlayer.name = playerNameInput.value.trim() || "Unknown"; 
-      menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; 
-      leaderboardPanel.style.display = 'block'; 
-    });
+    saveSettingsBtn.addEventListener('click', () => { myPlayer.name = playerNameInput.value.trim() || "Unknown"; menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
     
-    playBtn.addEventListener('click', () => { 
-      menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; // Hide when playing
-      canvas.style.display = 'block'; resetRun(); 
-      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); 
-    });
-    backMenuBtn.addEventListener('click', () => { 
-      menus.death.style.display = 'none'; menus.main.style.display = 'flex'; 
-      leaderboardPanel.style.display = 'block'; 
-    });
-    respawnBtn.addEventListener('click', () => { 
-      menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none';
-      canvas.style.display = 'block'; resetRun(); 
-    });
+    playBtn.addEventListener('click', () => { menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); });
+    backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
+    respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
 
     function resetRun() {
       isPlaying = true; myPlayer.x = 100; myPlayer.y = worldHeight - 200; myPlayer.dx = 0; myPlayer.dy = 0; myPlayer.health = myPlayer.maxHealth; myPlayer.fuel = myPlayer.maxFuel; myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0; bullets = []; networkBullets = []; targetBiome = biomes[0]; currentSky = [...targetBiome.sky]; biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5; joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false; buildMap(); initParticles(); gameLoop();
@@ -203,18 +163,13 @@
 
     function killPlayer() {
       isPlaying = false; myPlayer.health = 0; 
-      
-      // EMIT DEATH AND SCORE TO SERVER
       if(isOnline && socket && socket.connected) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0 });
         socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
       }
-
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       document.getElementById('finalKillsText').innerText = `Your Streak: ${myPlayer.kills}`;
-      canvas.style.display = 'none'; 
-      menus.death.style.display = 'flex';
-      leaderboardPanel.style.display = 'block'; // Show scoreboard on death screen
+      canvas.style.display = 'none'; menus.death.style.display = 'flex'; leaderboardPanel.style.display = 'block';
     }
 
     function initParticles() { particles = []; for(let i=0; i<maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 }); }
