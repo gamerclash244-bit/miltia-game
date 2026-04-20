@@ -130,7 +130,7 @@
       if(socket) return; 
       
       try {
-        socket = io("https://YOUR_RENDER_URL_HERE.onrender.com"); 
+        socket = io("https://baylerbay-militia-server.onrender.com"); 
         isOnline = true;
         
         socket.on('connect', () => { document.getElementById('connectionStatus').innerText = "Connected Online!"; });
