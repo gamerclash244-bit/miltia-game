@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Online Militia - Global</title>
+  <title>Online Militia - Cross-Platform</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; touch-action: none; }
-    #gameCanvas { display: none; }
+    #gameCanvas { display: none; cursor: crosshair; } /* Added crosshair for PC */
     .menu-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(20, 25, 30, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; z-index: 10; }
     h1 { font-size: 3rem; margin-bottom: 10px; text-transform: uppercase; color: #55efc4; }
     .death-title { color: #ff4757; font-size: 4rem; }
@@ -26,6 +26,7 @@
   <div id="mainMenu" class="menu-screen">
     <h1>Twin-Stick Ops</h1>
     <p id="connectionStatus" style="color: #f1c40f;">Ready to connect...</p>
+    <p style="font-size: 0.9rem; color: #bdc3c7;">PC: WASD + Mouse | Mobile: Touch Joysticks</p>
     <button id="playBtn" class="ui-btn">Deploy Online</button>
     <button id="settingsBtn" class="ui-btn secondary">Edit Character</button>
   </div>
@@ -69,7 +70,6 @@
     const backMenuBtn = document.getElementById('backMenuBtn'); const playerNameInput = document.getElementById('playerNameInput');
     const colorBtns = document.querySelectorAll('.color-btn');
 
-    // --- NETWORK VARIABLES ---
     let socket;
     let networkPlayers = {}; 
     let networkBullets = [];
@@ -79,6 +79,10 @@
 
     const joyLeft = { active: false, startX: 0, startY: 0, dx: 0, dy: 0, touchId: null };
     const joyRight = { active: false, startX: 0, startY: 0, dx: 0, dy: 0, touchId: null };
+    
+    // PC Mouse Tracking
+    let mouseX = canvas.width / 2;
+    let mouseY = canvas.height / 2;
 
     const biomes = [
       { name: "GREENLANDS", endX: 2000, sky: [135, 206, 235], ground: "#55efc4", pType: "pollen", pColor: "rgba(255,255,255,0.6)" },
@@ -102,27 +106,22 @@
 
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
 
-    // --- MENU LOGIC ---
     settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
     colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
     saveSettingsBtn.addEventListener('click', () => { myPlayer.name = playerNameInput.value.trim() || "Unknown"; menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
     
     playBtn.addEventListener('click', () => { 
       menus.main.style.display = 'none'; canvas.style.display = 'block'; 
-      initNetwork(); // Connect to server
+      initNetwork(); 
       resetRun(); 
       if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); 
     });
     backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; });
     respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
 
-    // --- MULTIPLAYER NETWORK INIT ---
     function initNetwork() {
-      if(socket) return; // Prevent double connection
-      
-      // >>> REPLACE THIS WITH YOUR KOYEB URL <<<
-      socket = io("YOUR_KOYEB_URL_HERE"); 
-
+      if(socket) return; 
+      socket = io("https://YOUR_RENDER_URL_HERE.onrender.com"); 
       socket.on('connect', () => { document.getElementById('connectionStatus').innerText = "Connected to Server"; });
       socket.on('currentPlayers', (players) => { networkPlayers = players; delete networkPlayers[socket.id]; });
       socket.on('newPlayer', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; });
@@ -138,12 +137,12 @@
       myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0;
       bullets = []; npcBullets = []; networkBullets = [];
       targetBiome = biomes[0]; currentSky = [...targetBiome.sky]; biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5;
-      joyLeft.active = false; joyRight.active = false; keys.fire = false;
+      joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       buildMap(); gameLoop();
     }
 
     function killPlayer() {
-      isPlaying = false; joyLeft.active = false; joyRight.active = false; keys.fire = false;
+      isPlaying = false; joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       document.getElementById('finalKillsText').innerText = `Kills: ${myPlayer.kills}`;
       canvas.style.display = 'none'; menus.death.style.display = 'flex';
     }
@@ -167,11 +166,9 @@
     window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
     function buildMap() {
-      // Map seed logic would go here to sync map generation between players, but for now we generate same fixed map locally
       map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight - 50, w: worldWidth, h: 50, type: "floor" } ];
       npcs = []; powerups = [];
       let currentX = 300;
-      // Use fixed seed generator logic for syncing offline AI
       let seed = 1; function random() { let x = Math.sin(seed++) * 10000; return x - Math.floor(x); }
       
       while (currentX < worldWidth - 500) {
@@ -189,6 +186,37 @@
       }
     }
 
+    // --- PC CONTROLS (KEYBOARD & MOUSE) ---
+    window.addEventListener('keydown', (e) => {
+      if (!isPlaying) return;
+      const key = e.key.toLowerCase();
+      if (key === 'a' || key === 'arrowleft') keys.a = true;
+      if (key === 'd' || key === 'arrowright') keys.d = true;
+      if (key === 'w' || key === 'arrowup' || key === ' ') keys.w = true; // Spacebar also flies
+    });
+
+    window.addEventListener('keyup', (e) => {
+      const key = e.key.toLowerCase();
+      if (key === 'a' || key === 'arrowleft') keys.a = false;
+      if (key === 'd' || key === 'arrowright') keys.d = false;
+      if (key === 'w' || key === 'arrowup' || key === ' ') keys.w = false;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (!isPlaying) return;
+      if (!joyRight.active) keys.fire = true; // PC Fire
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      if (!joyRight.active) keys.fire = false; // PC Stop Fire
+    });
+
+    // --- MOBILE CONTROLS (TOUCH) ---
     canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (!isPlaying) return; for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (t.clientX < canvas.width / 2) { joyLeft.active = true; joyLeft.touchId = t.identifier; joyLeft.startX = t.clientX; joyLeft.startY = t.clientY; joyLeft.dx = 0; joyLeft.dy = 0; } else { joyRight.active = true; joyRight.touchId = t.identifier; joyRight.startX = t.clientX; joyRight.startY = t.clientY; joyRight.dx = 0; joyRight.dy = 0; } } }, {passive: false});
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isPlaying) return; for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier === joyLeft.touchId) { let dx = t.clientX - joyLeft.startX; let dy = t.clientY - joyLeft.startY; let dist = Math.hypot(dx, dy); if (dist > 50) { dx = (dx/dist)*50; dy = (dy/dist)*50; } joyLeft.dx = dx; joyLeft.dy = dy; } if (joyRight.active && t.identifier === joyRight.touchId) { let dx = t.clientX - joyRight.startX; let dy = t.clientY - joyRight.startY; let dist = Math.hypot(dx, dy); if (dist > 50) { dx = (dx/dist)*50; dy = (dy/dist)*50; } joyRight.dx = dx; joyRight.dy = dy; } } }, {passive: false});
     canvas.addEventListener('touchend', (e) => { e.preventDefault(); for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier === joyLeft.touchId) { joyLeft.active = false; keys.a = false; keys.d = false; keys.w = false; } if (joyRight.active && t.identifier === joyRight.touchId) { joyRight.active = false; keys.fire = false; } } }, {passive: false});
@@ -197,14 +225,22 @@
       let bx = myPlayer.x + myPlayer.width/2; let by = myPlayer.y + myPlayer.height/2;
       let bvx = Math.cos(myPlayer.aimAngle) * 16; let bvy = Math.sin(myPlayer.aimAngle) * 16;
       bullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius: 4 }); 
-      
-      // Send bullet to network
       if(socket) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius: 4 });
     }
 
     function update() {
+      // Process Mobile Joysticks (Overrides PC if actively touched)
       if (joyLeft.active) { keys.a = joyLeft.dx < -15; keys.d = joyLeft.dx > 15; keys.w = joyLeft.dy < -15; }
-      if (joyRight.active) { myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); keys.fire = Math.hypot(joyRight.dx, joyRight.dy) > 20; }
+      
+      if (joyRight.active) { 
+        myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); 
+        keys.fire = Math.hypot(joyRight.dx, joyRight.dy) > 20; 
+      } else {
+        // PC Mouse Aiming
+        const worldMouseX = mouseX + camera.x;
+        const worldMouseY = mouseY + camera.y;
+        myPlayer.aimAngle = Math.atan2(worldMouseY - (myPlayer.y + myPlayer.height/2), worldMouseX - (myPlayer.x + myPlayer.width/2));
+      }
 
       let newBiome = targetBiome; for (let b of biomes) { if (myPlayer.x < b.endX) { newBiome = b; break; } }
       if (newBiome !== targetBiome) { targetBiome = newBiome; biomePopupName = targetBiome.name; biomePopupOpacity = 2.5; }
@@ -216,7 +252,6 @@
       let prevX = myPlayer.x;
       if (keys.a) myPlayer.x -= myPlayer.speed; 
       if (keys.d) myPlayer.x += myPlayer.speed; 
-      if (!joyRight.active) { if (keys.a) myPlayer.aimAngle = Math.PI; if (keys.d) myPlayer.aimAngle = 0; }
 
       for(let obj of map) { if (myPlayer.x < obj.x + obj.w && myPlayer.x + myPlayer.width > obj.x && myPlayer.y < obj.y + obj.h && myPlayer.y + myPlayer.height > obj.y) myPlayer.x = prevX; }
       
@@ -227,7 +262,6 @@
       myPlayer.y += myPlayer.dy;
       for(let obj of map) { if (myPlayer.x < obj.x + obj.w && myPlayer.x + myPlayer.width > obj.x && myPlayer.y < obj.y + obj.h && myPlayer.y + myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
 
-      // SYNC PLAYER MOVEMENT TO SERVER
       if(socket) socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health });
 
       for(let i = powerups.length - 1; i >= 0; i--) {
@@ -243,11 +277,9 @@
         if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = Date.now(); if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = Date.now(); } }
       }
 
-      // Local Bullets
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for(let obj of map) { if (b.x > obj.x && b.x < obj.x + obj.w && b.y > obj.y && b.y < obj.y + obj.h) { destroyed = true; break; } }
-        // Damage to network players
         if (!destroyed) {
           for (let id in networkPlayers) {
             let np = networkPlayers[id];
@@ -257,7 +289,6 @@
         if (destroyed || b.x < 0 || b.x > worldWidth || b.y < 0 || b.y > worldHeight) bullets.splice(i, 1);
       }
 
-      // Network Bullets (Incoming Fire)
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for(let obj of map) { if (b.x > obj.x && b.x < obj.x + obj.w && b.y > obj.y && b.y < obj.y + obj.h) { destroyed = true; break; } }
@@ -303,7 +334,6 @@
         }
       }
 
-      // Draw Network Players
       for (let id in networkPlayers) {
         let np = networkPlayers[id];
         ctx.save(); ctx.translate(np.x + 20, np.y + 20); ctx.rotate(np.aimAngle); ctx.fillStyle = '#bdc3c7'; ctx.fillRect(0, -4, 35, 8); ctx.restore();
@@ -313,7 +343,6 @@
         ctx.fillStyle = 'white'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.fillText(np.name, np.x + 20, np.y - 15);
       }
 
-      // Draw Local Player
       const centerX = myPlayer.x + myPlayer.width / 2; const centerY = myPlayer.y + myPlayer.height / 2;
       ctx.save(); ctx.translate(centerX, centerY); ctx.rotate(myPlayer.aimAngle); ctx.fillStyle = '#bdc3c7'; ctx.fillRect(0, -4, 35, 8); ctx.restore();
       ctx.fillStyle = myPlayer.color; ctx.fillRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height);
@@ -325,11 +354,10 @@
       ctx.fillStyle = '#e74c3c'; networkBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); });
       ctx.restore(); 
 
-      // UI HUD
       ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 20, 140, 12);
       ctx.fillStyle = '#2ecc71'; ctx.fillRect(20, 20, (myPlayer.health / myPlayer.maxHealth) * 140, 12); ctx.fillStyle = 'white'; ctx.font = '10px Arial'; ctx.fillText('HP', 22, 30);
       let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > Date.now(); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 40, 140, 12);
-      ctx.fillStyle = hasUnlimitedJetpack ? '#00cec9' : '#3498db'; ctx.fillRect(20, 40, hasUnlimitedJetpack ? 140 : (myPlayer.fuel / myPlayer.maxFuel) * 140, 12); ctx.fillStyle = 'white'; ctx.fillText(hasUnlimitedJetpack ? 'INF JET' : 'JET', 22, 50);
+      ctx.fillStyle = hasUnlimitedJetpack ? '#00cec9' : '#3498db'; ctx.fillRect(20, 40, hasUnlimitedJetpack ? 140 : (myPlayer.fuel / myPlayer.maxFuel) * 140, 12); ctx.fillStyle = 'white'; ctx.fillText(hasUnlimitedJetpack ? 'INF JET', 22, 50);
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 60, 140, 18); ctx.fillStyle = (myPlayer.ammo === 0) ? '#e74c3c' : 'white'; ctx.font = 'bold 12px Arial'; ctx.fillText(myPlayer.isReloading ? "RELOADING..." : `AMMO: ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, 25, 73);
       ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(20, 85, 140, 18); ctx.fillStyle = '#f1c40f'; ctx.fillText(`KILLS: ${myPlayer.kills}`, 25, 98);
 
