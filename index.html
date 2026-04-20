@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Militia - Bulletproof Build</title>
+  <title>BaylerBay Ops - Desync Patch</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; touch-action: none; }
     #gameCanvas { display: none; cursor: crosshair; }
@@ -24,10 +24,10 @@
 <body>
 
   <div id="mainMenu" class="menu-screen">
-    <h1>Twin-Stick Ops</h1>
-    <p id="connectionStatus" style="color: #f1c40f;">Ready for deployment</p>
+    <h1>BaylerBay Ops</h1>
+    <p id="connectionStatus" style="color: #f1c40f; font-weight: bold;">Connecting to server...</p>
     <p style="font-size: 0.9rem; color: #bdc3c7;">PC: WASD + Mouse | Mobile: Touch Joysticks</p>
-    <button id="playBtn" class="ui-btn">Deploy</button>
+    <button id="playBtn" class="ui-btn" style="display: none;">Deploy Online</button>
     <button id="settingsBtn" class="ui-btn secondary">Edit Character</button>
   </div>
 
@@ -74,6 +74,7 @@
     let networkPlayers = {}; 
     let networkBullets = [];
     let isOnline = false;
+    let lastSyncTime = 0; // NEW: Network Throttler
 
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let npcs = []; let npcBullets = []; let powerups = []; 
@@ -104,52 +105,57 @@
 
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
 
-    settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
-    colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
-    saveSettingsBtn.addEventListener('click', () => { myPlayer.name = playerNameInput.value.trim() || "Unknown"; menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
-    
-    playBtn.addEventListener('click', () => { 
-      menus.main.style.display = 'none'; canvas.style.display = 'block'; 
-      initNetwork(); 
-      resetRun(); 
-      if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); 
-    });
-    backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; });
-    respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
-
-    // --- BULLETPROOF NETWORK INIT ---
+    // --- PATIENT NETWORK INIT ---
     function initNetwork() {
-      // Check if Socket.io loaded successfully
+      // >>> REPLACE THIS WITH YOUR RENDER URL <<<
+      const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
+      const statusText = document.getElementById('connectionStatus');
+
       if (typeof io === 'undefined') {
-        console.warn("Socket.io failed to load. Running in Offline Mode.");
-        document.getElementById('connectionStatus').innerText = "Playing Offline (Local AI Only)";
-        isOnline = false;
-        return;
+        statusText.innerText = "Multiplayer script blocked. Play Offline.";
+        statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline";
+        isOnline = false; return;
       }
 
       if(socket) return; 
       
+      statusText.innerText = "Waking up server... (Can take 50 seconds)"; statusText.style.color = "#f39c12";
+
       try {
-        socket = io("https://baylerbay-militia-server.onrender.com"); 
-        isOnline = true;
+        socket = io(myRenderURL, { reconnectionAttempts: 12, reconnectionDelay: 5000 }); 
         
-        socket.on('connect', () => { document.getElementById('connectionStatus').innerText = "Connected Online!"; });
+        socket.on('connect', () => { 
+          isOnline = true; statusText.innerText = "Connected Online! Ready."; statusText.style.color = "#2ecc71"; 
+          playBtn.style.display = "block"; playBtn.innerText = "Deploy Online";
+        });
+
         socket.on('currentPlayers', (players) => { networkPlayers = players; delete networkPlayers[socket.id]; });
         socket.on('newPlayer', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; });
-        socket.on('playerMoved', (playerInfo) => { if(networkPlayers[playerInfo.id]) networkPlayers[playerInfo.id] = playerInfo.player; });
+        
+        // BUG FIX: Ensure network players update properly even if they arrived first
+        socket.on('playerMoved', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; });
+        
         socket.on('networkBullet', (b) => { networkBullets.push(b); });
         socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
         
-        // Catch connection errors
-        socket.on('connect_error', () => {
-          document.getElementById('connectionStatus').innerText = "Server asleep. Playing Offline.";
-          isOnline = false;
+        socket.on('reconnect_failed', () => {
+          statusText.innerText = "Server unreachable. Play local mode."; statusText.style.color = "#e74c3c"; 
+          playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false;
         });
+
       } catch (err) {
-        console.warn("Network Error: ", err);
-        isOnline = false;
+        statusText.innerText = "Network Error."; playBtn.style.display = "block"; isOnline = false;
       }
     }
+
+    initNetwork();
+
+    settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
+    colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
+    saveSettingsBtn.addEventListener('click', () => { myPlayer.name = playerNameInput.value.trim() || "Unknown"; menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
+    playBtn.addEventListener('click', () => { menus.main.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); });
+    backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; });
+    respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
 
     function resetRun() {
       isPlaying = true;
@@ -190,7 +196,10 @@
       map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight - 50, w: worldWidth, h: 50, type: "floor" } ];
       npcs = []; powerups = [];
       let currentX = 300;
-      let seed = 1; function random() { let x = Math.sin(seed++) * 10000; return x - Math.floor(x); }
+      
+      // BUG FIX: Reset the seed INSIDE the function so the map is identical every single time you respawn!
+      let seed = 1; 
+      function random() { let x = Math.sin(seed++) * 10000; return x - Math.floor(x); }
       
       while (currentX < worldWidth - 500) {
         let platWidth = 150 + random() * 300; let platY = worldHeight - 150 - (random() * 600); 
@@ -232,7 +241,7 @@
       let bx = myPlayer.x + myPlayer.width/2; let by = myPlayer.y + myPlayer.height/2;
       let bvx = Math.cos(myPlayer.aimAngle) * 16; let bvy = Math.sin(myPlayer.aimAngle) * 16;
       bullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius: 4 }); 
-      if(isOnline && socket) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius: 4 });
+      if(isOnline && socket && socket.connected) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius: 4 });
     }
 
     function update() {
@@ -265,7 +274,11 @@
       myPlayer.y += myPlayer.dy;
       for(let obj of map) { if (myPlayer.x < obj.x + obj.w && myPlayer.x + myPlayer.width > obj.x && myPlayer.y < obj.y + obj.h && myPlayer.y + myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
 
-      if(isOnline && socket) socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health });
+      // BUG FIX: NETWORK THROTTLER (Prevents Server Crashing & Lag)
+      if(isOnline && socket && socket.connected && Date.now() - lastSyncTime > 50) {
+        socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health });
+        lastSyncTime = Date.now();
+      }
 
       for(let i = powerups.length - 1; i >= 0; i--) {
         let p = powerups[i];
@@ -292,7 +305,10 @@
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for(let obj of map) { if (b.x > obj.x && b.x < obj.x + obj.w && b.y > obj.y && b.y < obj.y + obj.h) { destroyed = true; break; } }
-        if (!destroyed && b.x > myPlayer.x && b.x < myPlayer.x + myPlayer.width && b.y > myPlayer.y && b.y < myPlayer.y + myPlayer.height) { myPlayer.health -= 15; destroyed = true; if (myPlayer.health <= 0) killPlayer(); }
+        if (!destroyed && b.x > myPlayer.x && b.x < myPlayer.x + myPlayer.width && b.y > myPlayer.y && b.y < myPlayer.y + myPlayer.height) {
+            myPlayer.health -= 15; destroyed = true;
+            if (myPlayer.health <= 0) killPlayer(); 
+        }
         if (destroyed || b.x < 0 || b.x > worldWidth || b.y < 0 || b.y > worldHeight) networkBullets.splice(i, 1);
       }
 
