@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Final Build</title>
+  <title>BaylerBay Ops - Auth & Weather</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; touch-action: none; }
     #gameCanvas { display: none; cursor: crosshair; }
@@ -15,7 +15,7 @@
     button.ui-btn.secondary { background-color: #34495e; }
     button.ui-btn.secondary:active { background-color: #7f8c8d; }
     .setting-group { margin: 20px 0; display: flex; flex-direction: column; align-items: center; }
-    input[type="text"] { padding: 10px; font-size: 1.2rem; border-radius: 5px; border: none; text-align: center; width: 250px; font-weight: bold; }
+    input[type="text"], input[type="password"] { padding: 10px; font-size: 1.2rem; border-radius: 5px; border: none; text-align: center; width: 250px; font-weight: bold; margin-bottom: 10px;}
     .color-picker { display: flex; gap: 15px; margin-top: 10px; }
     .color-btn { width: 40px; height: 40px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
     .color-btn.selected { border-color: white; transform: scale(1.1); }
@@ -23,7 +23,7 @@
     #leaderboardPanel {
       position: absolute; right: 20px; top: 50%; transform: translateY(-50%); width: 320px;
       background: rgba(30, 40, 50, 0.9); border: 2px solid #f1c40f; border-radius: 10px;
-      padding: 20px; color: white; z-index: 20; display: block; box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
+      padding: 20px; color: white; z-index: 20; display: none; box-shadow: 0 0 15px rgba(241, 196, 15, 0.3);
     }
     .lb-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
     .lb-table th { border-bottom: 2px solid #555; padding-bottom: 8px; color: #bdc3c7; }
@@ -37,30 +37,35 @@
 </head>
 <body>
 
+  <div id="loginScreen" class="menu-screen">
+    <h1>Authentication</h1>
+    <p id="loginStatus" style="color: #f1c40f; font-weight: bold;">Connecting to database...</p>
+    <div class="setting-group">
+      <input type="text" id="loginName" placeholder="Callsign" maxlength="12">
+      <input type="password" id="loginPin" placeholder="Secret PIN" maxlength="8">
+    </div>
+    <button id="authBtn" class="ui-btn" style="display: none;">Login / Register</button>
+  </div>
+
   <div id="leaderboardPanel">
     <h3 style="margin-top: 0; color: #f1c40f; text-align: center; text-transform: uppercase;">Top Operators</h3>
     <table class="lb-table">
       <thead><tr><th>Callsign</th><th style="text-align: center;" title="Highest Kills in a Single Life">1-Life</th><th style="text-align: right;">Total</th></tr></thead>
-      <tbody id="leaderboardBody"><tr><td colspan="3" style="text-align:center; padding-top: 15px;">Connecting to database...</td></tr></tbody>
+      <tbody id="leaderboardBody"><tr><td colspan="3" style="text-align:center; padding-top: 15px;">Loading data...</td></tr></tbody>
     </table>
   </div>
 
-  <div id="mainMenu" class="menu-screen">
+  <div id="mainMenu" class="menu-screen" style="display: none;">
     <h1>BaylerBay Ops</h1>
-    <p id="connectionStatus" style="color: #f1c40f; font-weight: bold;">Connecting to server...</p>
     <p style="font-size: 0.9rem; color: #bdc3c7;">PC: WASD + Mouse | Mobile: Touch Joysticks</p>
-    <button id="playBtn" class="ui-btn" style="display: none;">Deploy Online</button>
-    <button id="settingsBtn" class="ui-btn secondary">Edit Character</button>
+    <button id="playBtn" class="ui-btn">Deploy Online</button>
+    <button id="settingsBtn" class="ui-btn secondary">Edit Armor</button>
   </div>
 
   <div id="settingsMenu" class="menu-screen" style="display: none;">
-    <h1 style="color: #f1c40f;">Settings</h1>
+    <h1 style="color: #f1c40f;">Armor Config</h1>
     <div class="setting-group">
-      <label style="margin-bottom: 5px; font-weight: bold;">CALLSIGN (NAME):</label>
-      <input type="text" id="playerNameInput" value="Nizal Dhani PT" maxlength="16">
-    </div>
-    <div class="setting-group">
-      <label style="margin-bottom: 5px; font-weight: bold;">ARMOR COLOR:</label>
+      <label style="margin-bottom: 5px; font-weight: bold;">SELECT COLOR:</label>
       <div class="color-picker">
         <div class="color-btn selected" data-color="#e74c3c" style="background-color: #e74c3c;"></div>
         <div class="color-btn" data-color="#2ecc71" style="background-color: #2ecc71;"></div>
@@ -73,7 +78,7 @@
 
   <div id="deathScreen" class="menu-screen" style="display: none;">
     <h1 class="death-title">K.I.A.</h1>
-    <h2 id="finalKillsText" style="margin-bottom: 30px; color: #f1c40f;">Kills: 0</h2>
+    <h2 id="finalKillsText" style="margin-bottom: 30px; color: #f1c40f;">Streak: 0</h2>
     <button id="respawnBtn" class="ui-btn">Respawn</button>
     <button id="backMenuBtn" class="ui-btn secondary">Main Menu</button>
   </div>
@@ -83,14 +88,20 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
   <script>
-    const menus = { main: document.getElementById('mainMenu'), settings: document.getElementById('settingsMenu'), death: document.getElementById('deathScreen') };
+    const menus = { 
+      login: document.getElementById('loginScreen'),
+      main: document.getElementById('mainMenu'), 
+      settings: document.getElementById('settingsMenu'), 
+      death: document.getElementById('deathScreen') 
+    };
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const leaderboardPanel = document.getElementById('leaderboardPanel');
     
+    const authBtn = document.getElementById('authBtn');
     const playBtn = document.getElementById('playBtn'); const settingsBtn = document.getElementById('settingsBtn');
     const saveSettingsBtn = document.getElementById('saveSettingsBtn'); const respawnBtn = document.getElementById('respawnBtn');
-    const backMenuBtn = document.getElementById('backMenuBtn'); const playerNameInput = document.getElementById('playerNameInput');
+    const backMenuBtn = document.getElementById('backMenuBtn'); 
     const colorBtns = document.querySelectorAll('.color-btn');
 
     let socket = null; let networkPlayers = {}; let networkBullets = []; let isOnline = false; let lastSyncTime = 0; 
@@ -102,38 +113,62 @@
     let mouseX = canvas.width / 2; let mouseY = canvas.height / 2;
 
     const biomes = [
-      { name: "GREENLANDS", endX: 2000, sky: [135, 206, 235], ground: "#55efc4" }, { name: "SAVANNA", endX: 4000, sky: [230, 126, 34], ground: "#d35400" },
-      { name: "ASH WASTELAND", endX: 6000, sky: [44, 62, 80], ground: "#7f8c8d" }, { name: "FROST PEAKS", endX: 8000, sky: [176, 224, 230], ground: "#ecf0f1" },
-      { name: "THE VOID", endX: 10000, sky: [20, 0, 35], ground: "#8e44ad" }
+      { name: "GREENLANDS", endX: 2000, sky: [135, 206, 235], ground: "#55efc4", pType: "pollen", pColor: "rgba(255,255,255,0.6)" },
+      { name: "SAVANNA", endX: 4000, sky: [230, 126, 34], ground: "#d35400", pType: "dust", pColor: "rgba(211,84,0,0.5)" },
+      { name: "ASH WASTELAND", endX: 6000, sky: [44, 62, 80], ground: "#7f8c8d", pType: "ash", pColor: "rgba(30,30,30,0.8)" },
+      { name: "FROST PEAKS", endX: 8000, sky: [176, 224, 230], ground: "#ecf0f1", pType: "snow", pColor: "rgba(255,255,255,0.9)" },
+      { name: "THE VOID", endX: 10000, sky: [20, 0, 35], ground: "#8e44ad", pType: "spark", pColor: "rgba(155,89,182,0.8)" }
     ];
-    let targetBiome = biomes[0]; let currentSky = [...targetBiome.sky]; let biomePopupName = targetBiome.name; let biomePopupOpacity = 0; let particles = []; const maxParticles = 50; 
+    let targetBiome = biomes[0]; let currentSky = [...targetBiome.sky]; let biomePopupName = targetBiome.name; let biomePopupOpacity = 0; 
+    
+    // WEATHER PARTICLES ARE BACK
+    let particles = []; const maxParticles = 50; 
 
     const myPlayer = {
-      x: 100, y: worldHeight - 100, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0, 
+      x: 100, y: worldHeight - 200, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0, 
       health: 100, maxHealth: 100, fuel: 250, maxFuel: 250, ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, reloadDuration: 1500, lastShotTime: 0,
-      name: "Nizal Dhani PT", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0, lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100
+      name: "Unknown", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0, lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100
     };
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
 
     function initNetwork() {
-      // Direct connection to your specific Render backend
+      // >>> PASTE YOUR RENDER URL HERE <<<
       const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
-      const statusText = document.getElementById('connectionStatus');
+      const loginStatus = document.getElementById('loginStatus');
 
-      if (typeof io === 'undefined') { statusText.innerText = "Multiplayer script blocked. Play Offline."; statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false; return; }
+      if (typeof io === 'undefined') { loginStatus.innerText = "Error: Blocked by browser."; loginStatus.style.color = "#e74c3c"; return; }
       if(socket) return; 
       
-      statusText.innerText = "Waking up server... (Can take 50 seconds)"; statusText.style.color = "#f39c12";
+      loginStatus.innerText = "Waking up server... (Can take 50 seconds)"; loginStatus.style.color = "#f39c12";
 
       try {
         socket = io(myRenderURL, { reconnectionAttempts: 12, reconnectionDelay: 5000 }); 
-        socket.on('connect', () => { isOnline = true; statusText.innerText = "Connected Online! Ready."; statusText.style.color = "#2ecc71"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Online"; });
-        socket.on('currentPlayers', (players) => { networkPlayers = players; delete networkPlayers[socket.id]; for(let id in networkPlayers) { networkPlayers[id].targetX = networkPlayers[id].x; networkPlayers[id].targetY = networkPlayers[id].y; } });
-        socket.on('newPlayer', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y; });
-        socket.on('playerMoved', (playerInfo) => { if(networkPlayers[playerInfo.id]) { networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y; networkPlayers[playerInfo.id].aimAngle = playerInfo.player.aimAngle; networkPlayers[playerInfo.id].health = playerInfo.player.health; networkPlayers[playerInfo.id].name = playerInfo.player.name; networkPlayers[playerInfo.id].color = playerInfo.player.color; } });
+        
+        socket.on('connect', () => { 
+          isOnline = true; 
+          loginStatus.innerText = "Server Online. Please Authenticate."; 
+          loginStatus.style.color = "#2ecc71"; 
+          authBtn.style.display = "block"; 
+        });
+
+        socket.on('newPlayer', (playerInfo) => { 
+          networkPlayers[playerInfo.id] = playerInfo.player; 
+          networkPlayers[playerInfo.id].targetX = playerInfo.player.x; 
+          networkPlayers[playerInfo.id].targetY = playerInfo.player.y; 
+        });
+        
+        socket.on('playerMoved', (playerInfo) => { 
+          if(networkPlayers[playerInfo.id]) { 
+            networkPlayers[playerInfo.id].targetX = playerInfo.player.x; 
+            networkPlayers[playerInfo.id].targetY = playerInfo.player.y; 
+            networkPlayers[playerInfo.id].aimAngle = playerInfo.player.aimAngle; 
+            networkPlayers[playerInfo.id].health = playerInfo.player.health; 
+          } 
+        });
+        
         socket.on('networkBullet', (b) => { networkBullets.push(b); });
         socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
-        socket.on('reconnect_failed', () => { statusText.innerText = "Server unreachable. Play local mode."; statusText.style.color = "#e74c3c"; playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false; });
+        socket.on('reconnect_failed', () => { loginStatus.innerText = "Server unreachable."; loginStatus.style.color = "#e74c3c"; isOnline = false; });
         
         socket.on('leaderboardUpdate', (topPlayers) => {
           let html = '';
@@ -141,17 +176,48 @@
             let trophy = index === 0 ? '👑' : (index + 1) + '.';
             html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align: center; color: #55efc4; font-weight: bold;">${p.bestStreak}</td><td style="text-align: right;">${p.totalKills}</td></tr>`;
           });
-          if(topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center;">No kills yet. Be the first!</td></tr>';
+          if(topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center;">No kills yet.</td></tr>';
           document.getElementById('leaderboardBody').innerHTML = html;
         });
-      } catch (err) { statusText.innerText = "Network Error."; playBtn.style.display = "block"; isOnline = false; }
+      } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
     }
 
     initNetwork();
 
+    // --- AUTHENTICATION LOGIC ---
+    authBtn.addEventListener('click', () => {
+      const name = document.getElementById('loginName').value.trim();
+      const pin = document.getElementById('loginPin').value.trim();
+      const status = document.getElementById('loginStatus');
+
+      if(!name || !pin) { status.innerText = "Name and PIN required."; status.style.color = "#e74c3c"; return; }
+      
+      status.innerText = "Authenticating..."; status.style.color = "#f1c40f";
+
+      socket.emit('login', { name: name, pin: pin }, (res) => {
+        if(res.success) {
+          myPlayer.name = name;
+          // Load existing players into memory so we can see them
+          networkPlayers = res.currentPlayers; 
+          delete networkPlayers[socket.id];
+          for(let id in networkPlayers) { 
+            networkPlayers[id].targetX = networkPlayers[id].x; 
+            networkPlayers[id].targetY = networkPlayers[id].y; 
+          }
+          // Proceed to menu
+          menus.login.style.display = 'none';
+          menus.main.style.display = 'flex';
+          leaderboardPanel.style.display = 'block';
+        } else {
+          status.innerText = res.message;
+          status.style.color = "#e74c3c";
+        }
+      });
+    });
+
     settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
     colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
-    saveSettingsBtn.addEventListener('click', () => { myPlayer.name = playerNameInput.value.trim() || "Unknown"; menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
+    saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
     
     playBtn.addEventListener('click', () => { menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(e => {}); });
     backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
@@ -208,6 +274,7 @@
       myPlayer.y += myPlayer.dy;
       for(let obj of map) { if (myPlayer.x < obj.x + obj.w && myPlayer.x + myPlayer.width > obj.x && myPlayer.y < obj.y + obj.h && myPlayer.y + myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
 
+      // LINEAR INTERPOLATION (LERPING) for smooth multiplayer
       for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health <= 0) continue; if (np.targetX !== undefined && np.targetY !== undefined) { np.x += (np.targetX - np.x) * 0.3; np.y += (np.targetY - np.y) * 0.3; } }
 
       let syncNeeded = Math.abs(myPlayer.x - myPlayer.lastX) > 1 || Math.abs(myPlayer.y - myPlayer.lastY) > 1 || myPlayer.aimAngle !== myPlayer.lastAim || myPlayer.health !== myPlayer.lastHealth;
@@ -238,7 +305,10 @@
 
     function draw() {
       ctx.fillStyle = `rgb(${Math.round(currentSky[0])}, ${Math.round(currentSky[1])}, ${Math.round(currentSky[2])})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // DRAW WEATHER PARTICLES
       ctx.fillStyle = targetBiome.pColor; for(let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
+      
       ctx.save(); ctx.translate(-camera.x, -camera.y);
 
       const viewLeft = camera.x - 100; const viewRight = camera.x + canvas.width + 100;
