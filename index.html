@@ -121,7 +121,7 @@
 
     function initNetwork() {
       if(socket) return; 
-      socket = io("https://YOUR_RENDER_URL_HERE.onrender.com"); 
+      socket = io("https://baylerbay-militia-server.onrender.com"); 
       socket.on('connect', () => { document.getElementById('connectionStatus').innerText = "Connected to Server"; });
       socket.on('currentPlayers', (players) => { networkPlayers = players; delete networkPlayers[socket.id]; });
       socket.on('newPlayer', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; });
