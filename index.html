@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Smooth Multiplayer & Weather</title>
+  <title>BaylerBay Ops - Ghost Fix</title>
   <style>
     body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; touch-action: none; }
     #gameCanvas { display: none; cursor: crosshair; }
@@ -106,8 +106,8 @@
 
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
 
-    // --- NETWORK INIT (With Lerping Setup) ---
     function initNetwork() {
+      // >>> PASTE YOUR RENDER URL HERE <<<
       const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
       const statusText = document.getElementById('connectionStatus');
 
@@ -128,26 +128,18 @@
         });
 
         socket.on('currentPlayers', (players) => { 
-          networkPlayers = players; 
-          delete networkPlayers[socket.id]; 
-          // Setup lerp targets for existing players
-          for(let id in networkPlayers) {
-            networkPlayers[id].targetX = networkPlayers[id].x;
-            networkPlayers[id].targetY = networkPlayers[id].y;
-          }
+          networkPlayers = players; delete networkPlayers[socket.id]; 
+          for(let id in networkPlayers) { networkPlayers[id].targetX = networkPlayers[id].x; networkPlayers[id].targetY = networkPlayers[id].y; }
         });
         
         socket.on('newPlayer', (playerInfo) => { 
           networkPlayers[playerInfo.id] = playerInfo.player; 
-          networkPlayers[playerInfo.id].targetX = playerInfo.player.x;
-          networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
+          networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
         });
 
-        // MULTIPLAYER LERP UPDATE: Instead of snapping, update their target destination
         socket.on('playerMoved', (playerInfo) => { 
           if(networkPlayers[playerInfo.id]) {
-            networkPlayers[playerInfo.id].targetX = playerInfo.player.x;
-            networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
+            networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
             networkPlayers[playerInfo.id].aimAngle = playerInfo.player.aimAngle;
             networkPlayers[playerInfo.id].health = playerInfo.player.health;
             networkPlayers[playerInfo.id].name = playerInfo.player.name;
@@ -162,9 +154,7 @@
           statusText.innerText = "Server unreachable. Play local mode."; statusText.style.color = "#e74c3c"; 
           playBtn.style.display = "block"; playBtn.innerText = "Deploy Offline"; isOnline = false;
         });
-      } catch (err) {
-        statusText.innerText = "Network Error."; playBtn.style.display = "block"; isOnline = false;
-      }
+      } catch (err) { statusText.innerText = "Network Error."; playBtn.style.display = "block"; isOnline = false; }
     }
 
     initNetwork();
@@ -187,13 +177,21 @@
       buildMap(); initParticles(); gameLoop();
     }
 
+    // THE GHOST FIX: Broadcast death before pulling to menu
     function killPlayer() {
-      isPlaying = false; joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
+      isPlaying = false; 
+      myPlayer.health = 0; // Force exact zero
+      
+      // Fire final signal to server so you instantly vanish for everyone else
+      if(isOnline && socket && socket.connected) {
+        socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0 });
+      }
+
+      joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       document.getElementById('finalKillsText').innerText = `Kills: ${myPlayer.kills}`;
       canvas.style.display = 'none'; menus.death.style.display = 'flex';
     }
 
-    // WEATHER PARTICLES RESTORED
     function initParticles() { particles = []; for(let i=0; i<maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 }); }
     
     function updateParticles() {
@@ -206,8 +204,6 @@
         else if (targetBiome.pType === "spark") { p.vy = -2; p.vx = 0; }
         
         p.x += p.vx; p.y += p.vy;
-        
-        // Wrap weather seamlessly
         if (p.y > canvas.height + 10) p.y = -10; 
         if (p.y < -10) p.y = canvas.height + 10;
         if (p.x > canvas.width + 10) p.x = -10; 
@@ -230,8 +226,7 @@
     function buildMap() {
       map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight - 50, w: worldWidth, h: 50, type: "floor" } ];
       powerups = [];
-      let currentX = 300;
-      let rand = mulberry32(12345); // Fixed seed
+      let currentX = 300; let rand = mulberry32(12345);
       
       while (currentX < worldWidth - 500) {
         let platWidth = 150 + rand() * 300; let platY = worldHeight - 150 - (rand() * 600); 
@@ -289,17 +284,16 @@
       myPlayer.y += myPlayer.dy;
       for(let obj of map) { if (myPlayer.x < obj.x + obj.w && myPlayer.x + myPlayer.width > obj.x && myPlayer.y < obj.y + obj.h && myPlayer.y + myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
 
-      // LERPING MULTIPLAYER (Smooths out network stutter)
+      // Smooth Lerping
       for (let id in networkPlayers) {
         let np = networkPlayers[id];
+        if (np.health <= 0) continue; // Skip ghost calculations
         if (np.targetX !== undefined && np.targetY !== undefined) {
-            // Slide smoothly toward the target destination instead of snapping
             np.x += (np.targetX - np.x) * 0.3;
             np.y += (np.targetY - np.y) * 0.3;
         }
       }
 
-      // THROTTELED NETWORK SYNC (~30 updates per second for perfectly smooth data without crashing server)
       let syncNeeded = Math.abs(myPlayer.x - myPlayer.lastX) > 1 || Math.abs(myPlayer.y - myPlayer.lastY) > 1 || myPlayer.aimAngle !== myPlayer.lastAim || myPlayer.health !== myPlayer.lastHealth;
       if(isOnline && socket && socket.connected && Date.now() - lastSyncTime > 30 && syncNeeded) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health });
@@ -327,6 +321,8 @@
         if (!destroyed) {
           for (let id in networkPlayers) { 
             let np = networkPlayers[id]; 
+            // PREVENT SHOOTING GHOSTS
+            if (np.health <= 0) continue; 
             if (b.x > np.x && b.x < np.x + 40 && b.y > np.y && b.y < np.y + 40) { 
               destroyed = true; 
               if (np.health <= 15) myPlayer.kills++;
@@ -363,16 +359,12 @@
       ctx.fillStyle = `rgb(${Math.round(currentSky[0])}, ${Math.round(currentSky[1])}, ${Math.round(currentSky[2])})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // WEATHER PARTICLES
       ctx.fillStyle = targetBiome.pColor;
-      for(let p of particles) { 
-         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); 
-      }
+      for(let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
 
       ctx.save(); ctx.translate(-camera.x, -camera.y);
 
-      const viewLeft = camera.x - 100;
-      const viewRight = camera.x + canvas.width + 100;
+      const viewLeft = camera.x - 100; const viewRight = camera.x + canvas.width + 100;
 
       for (let p of powerups) {
         if (p.x > viewRight || p.x + p.w < viewLeft) continue;
@@ -388,7 +380,10 @@
 
       for (let id in networkPlayers) {
         let np = networkPlayers[id]; 
+        // THE GHOST FIX: If their health is 0, DO NOT draw them!
+        if (np.health <= 0) continue; 
         if (np.x > viewRight || np.x + 40 < viewLeft) continue;
+        
         ctx.save(); ctx.translate(np.x + 20, np.y + 20); ctx.rotate(np.aimAngle); ctx.fillStyle = '#bdc3c7'; ctx.fillRect(0, -4, 35, 8); ctx.restore();
         ctx.fillStyle = np.color; ctx.fillRect(np.x, np.y, 40, 40); ctx.fillStyle = 'red'; ctx.fillRect(np.x, np.y - 10, 40, 4); ctx.fillStyle = '#2ecc71'; ctx.fillRect(np.x, np.y - 10, 40 * (np.health / 100), 4);
         ctx.fillStyle = 'white'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.fillText(np.name, np.x + 20, np.y - 15);
