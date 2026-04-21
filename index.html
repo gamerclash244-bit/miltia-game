@@ -187,9 +187,9 @@
         socket.on('kicked', (data) => { isPlaying = false; document.exitPointerLock(); document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.'; document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none'; });
         socket.on('leaderboardUpdate', (topPlayers) => { let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak}</td><td style="text-align:right;">${p.totalKills}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
         
-        // ── NEW SERVER-SIDE NPC EVENT LISTENERS ──
+        // ── LISTEN FOR SERVER BOTS ──
         socket.on('npcSync', (serverBots) => {
-            npcs = serverBots; // Instantly mirrors the server's bots
+            if(isPublicMode) npcs = serverBots; 
         });
         
         socket.on('botDied', (data) => {
@@ -199,7 +199,7 @@
             }
             killFeed.push({ text: `🤖 ${data.killerName} → ${data.botName}`, timer: 5.0, color: (data.killerId === socket.id ? '#ff4757' : '#bdc3c7') });
         });
-        // ─────────────────────────────────────────
+        // ────────────────────────────
 
       } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
     }
@@ -237,6 +237,9 @@
       targetBiome = biomes[0]; currentSky = [...targetBiome.sky]; biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5;
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
+      
+      if (!isPublicMode) npcs = []; // Clear NPCs if in a private room
+      
       buildMap(); initParticles(); gameLoop();
     }
 
@@ -332,13 +335,12 @@
       if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
       if (keys.fire && t - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) { if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = t; if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = t; } } }
 
-      // ── UPDATED BULLET COLLISION WITH BOTS (SERVER-AUTHORITATIVE) ── //
+      // ── BOTS HIT DETECTION ──
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
         if (!destroyed) {
-            // Hit a Real Player?
             for (let id in networkPlayers) {
                 let np = networkPlayers[id]; if (np.localHealth <= 0 || np.health <= 0) continue;
                 if (b.x>np.x && b.x<np.x+40 && b.y>np.y && b.y<np.y+40) {
@@ -349,17 +351,13 @@
                 }
             }
 
-            // Hit an NPC Bot?
             if (!destroyed && isPublicMode) {
                 for (let n = 0; n < npcs.length; n++) {
                     let npc = npcs[n]; if (npc.health <= 0) continue;
                     if (b.x>npc.x && b.x<npc.x+40 && b.y>npc.y && b.y<npc.y+40) {
                         destroyed = true;
                         let dmg = WEAPONS[b.weapon || 'rifle'].damage;
-                        
-                        // Tell the server we hit the bot!
                         socket.emit('damageBot', { botId: npc.id, damage: dmg });
-                        
                         damageNumbers.push({ x: npc.x + 20, y: npc.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
                         break;
                     }
@@ -369,10 +367,8 @@
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) bullets.splice(i, 1);
       }
 
-      // ── INCOMING NETWORK BULLETS ── //
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
-        
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
