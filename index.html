@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Combat Build</title>
+  <title>BaylerBay Ops - Multiplayer</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
@@ -24,8 +24,8 @@
     button.ui-btn.secondary { background: rgba(44, 62, 80, 0.9); border: 1px solid rgba(127,140,141,0.4); }
     button.ui-btn.secondary:hover { background: #2c3e50; }
     .setting-group { margin: 16px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    input[type="text"], input[type="password"] { padding: 16px 20px; font-size: 1.3rem; font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; border-radius: 3px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: white; text-align: center; width: 290px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
-    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(85,239,196,0.15); }
+    input[type="text"] { padding: 16px 20px; font-size: 1.1rem; font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; border-radius: 3px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: white; text-align: center; width: 290px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(85,239,196,0.15); }
     #loginStatus { font-family: 'Share Tech Mono', monospace; font-size: 1rem; padding: 10px 20px; border-radius: 3px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); min-width: 290px; margin-bottom: 8px; }
     #kickedOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; }
     #kickedOverlay.visible { display: flex; }
@@ -45,7 +45,7 @@
       .menu-screen { justify-content: flex-start; padding-top: 5vh; height: 100vh; overflow: hidden; }
       h1 { font-size: 2.4rem; letter-spacing: 3px; margin-bottom: 5px; }
       .subtitle { margin-bottom: 15px; font-size: 0.8rem; }
-      button.ui-btn, input[type="text"], input[type="password"] { width: 260px; }
+      button.ui-btn, input[type="text"] { width: 260px; }
       #leaderboardPanel { right: auto; top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 360px; max-height: 35vh; overflow-y: auto; padding: 15px; }
     }
   </style>
@@ -58,7 +58,10 @@
     <h1>Database Uplink</h1>
     <p class="subtitle">[ SECURE AUTHENTICATION REQUIRED ]</p>
     <p id="loginStatus" style="color: #f1c40f;">Connecting to server...</p>
-    <div class="setting-group"><input type="text" id="loginName" placeholder="CALLSIGN" maxlength="12"><input type="password" id="loginPin" placeholder="SECRET PIN" maxlength="8"></div>
+    <div class="setting-group">
+      <input type="text" id="loginName" placeholder="CALLSIGN" maxlength="12">
+      <input type="text" id="loginRoom" placeholder="ROOM (Blank = Public)" maxlength="15">
+    </div>
     <button id="authBtn" class="ui-btn" style="display: none;">Verify &amp; Link</button>
   </div>
 
@@ -145,7 +148,9 @@
     }
 
     function initNetwork() {
-      const myRenderURL = "https://baylerbay-militia-server.onrender.com";
+      // ⚠️ CHANGE THIS URL TO YOUR LAPTOP'S IP ADDRESS (e.g., http://192.168.1.5:3000) FOR OFFLINE LAN PLAY
+      const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
+      
       const loginStatus = document.getElementById('loginStatus');
       if (typeof io === 'undefined') { loginStatus.innerText = "Error: Blocked by browser."; loginStatus.style.color = "#e74c3c"; return; }
       if (socket) return;
@@ -190,10 +195,15 @@
     initNetwork();
 
     authBtn.addEventListener('click', () => {
-      const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim(); const status = document.getElementById('loginStatus');
-      if (!name || !pin) { status.innerText = "Callsign and PIN required."; status.style.color = "#e74c3c"; return; }
+      const name = document.getElementById('loginName').value.trim(); 
+      const room = document.getElementById('loginRoom').value.trim(); // NEW: Grabs the room code
+      const status = document.getElementById('loginStatus');
+      
+      if (!name) { status.innerText = "Callsign required."; status.style.color = "#e74c3c"; return; }
+      
       status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f";
-      socket.emit('login', { name, pin }, (res) => {
+      
+      socket.emit('login', { name, room }, (res) => { // Sends room to server
         if (res.success) {
           myPlayer.name = name; networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
           for (let id in networkPlayers) { networkPlayers[id].targetX = networkPlayers[id].x; networkPlayers[id].targetY = networkPlayers[id].y; networkPlayers[id].localHealth = networkPlayers[id].health; networkPlayers[id].countedKill = false; }
@@ -211,12 +221,7 @@
 
     function resetRun() {
       isPlaying = true;
-      
-      // NEW: Drop player from the sky at a completely random location!
-      myPlayer.x = Math.random() * 8000 + 1000; 
-      myPlayer.y = Math.random() * 500 + 200; 
-      myPlayer.dx = 0; myPlayer.dy = 0;
-      
+      myPlayer.x = Math.random() * 8000 + 1000; myPlayer.y = Math.random() * 500 + 200; myPlayer.dx = 0; myPlayer.dy = 0;
       myPlayer.health = myPlayer.maxHealth; myPlayer.fuel = myPlayer.maxFuel;
       myPlayer.ammo = WEAPONS['rifle'].ammo; myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
       myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0;
@@ -348,7 +353,6 @@
                     killFeed.push({ text: `☠ YOU → ${npc.name}`, timer: 5.0, color: '#ff4757' });
                     spawnCoins(npc.x + 20, npc.y + 20);
                     
-                    // NEW: Respawn Bot safely after 3 seconds
                     setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
                 }
             }
@@ -380,7 +384,6 @@
         
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
-        // Does this hit ME?
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
           destroyed = true;
           if (myPlayer.invincibleTimer <= t && myPlayer.health > 0) {
@@ -391,7 +394,6 @@
           }
         }
 
-        // Does this hit OTHER NPCs? (Bots killing Bots)
         if (!destroyed) {
           for (let n = 0; n < npcs.length; n++) {
             let npc = npcs[n];
@@ -403,28 +405,18 @@
               
               if (npc.health <= 0) { 
                   spawnCoins(npc.x + 20, npc.y + 20); 
-                  
-                  // NEW: Dynamic Killfeed detects WHO killed the bot (Real player or Bot)
                   let killerName = "UNKNOWN";
                   let killerNPC = npcs.find(k => k.id === b.ownerId);
-                  if (killerNPC) {
-                      killerName = killerNPC.name;
-                  } else if (networkPlayers[b.ownerId]) {
-                      killerName = networkPlayers[b.ownerId].name; // If a real online player killed them
-                  } else {
-                      killerName = "OPERATOR"; // Fallback
-                  }
-
+                  if (killerNPC) { killerName = killerNPC.name; } 
+                  else if (networkPlayers[b.ownerId]) { killerName = networkPlayers[b.ownerId].name; } 
+                  else { killerName = "OPERATOR"; }
                   killFeed.push({ text: `🤖 ${killerName} → ${npc.name}`, timer: 4.0, color: '#bdc3c7' }); 
-                  
-                  // NEW: Respawn Bot safely after 3 seconds
                   setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
               }
               break;
             }
           }
         }
-
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) networkBullets.splice(i, 1);
       }
 
@@ -509,21 +501,4 @@
 
       const mmW = isMob ? 120 : 180, mmH = isMob ? 32 : 48; const mmX = canvas.width - mmW - (isMob ? 10 : 22); const mmY = isMob ? 10 : 22; const mm = { x: mmX, y: mmY, w: mmW, h: mmH };
       ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(mm.x-2, mm.y-2, mm.w+4, mm.h+4); ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(mm.x, mm.y, mm.w, mm.h);
-      const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      for (let obj of map) { if (obj.type==='plat'||obj.type==='floor') ctx.fillRect(mm.x+obj.x*sx, mm.y+obj.y*sy, Math.max(1.5,obj.w*sx), 1); }
-      for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health<=0) continue; ctx.fillStyle = np.color; ctx.fillRect(mm.x + np.x*sx - 2, mm.y + np.y*sy - 2, 4, 4); }
-      for (let i = 0; i < npcs.length; i++) { if (npcs[i].health <= 0) continue; ctx.fillStyle = npcs[i].color; ctx.fillRect(mm.x + npcs[i].x*sx - 2, mm.y + npcs[i].y*sy - 2, 4, 4); }
-      ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
-      ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
-
-      ctx.save(); ctx.font = `${isMob?10:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right'; let kfY = mm.y + mm.h + 20; 
-      for (let kf of killFeed) { ctx.globalAlpha = Math.min(1, kf.timer); let w = ctx.measureText(kf.text).width + 20; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width - w - 12, kfY - 16, w, 20); ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 12, kfY); kfY += 24; }
-      ctx.restore();
-
-      drawJoystick(joyLeft, '#3498db'); drawJoystick(joyRight, '#e74c3c');
-    }
-
-    function gameLoop() { if (isPlaying) { update(); draw(); requestAnimationFrame(gameLoop); } }
-  </script>
-</body>
-</html>
+      const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,25
