@@ -89,7 +89,8 @@
   <canvas id="gameCanvas"></canvas>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-  <script src="npc.js"></script> <script>
+  <script src="npc.js"></script> 
+  <script>
     let isTouchMode = false;
     window.addEventListener('touchstart', () => { isTouchMode = true; }, { passive: true, once: true });
 
@@ -128,7 +129,7 @@
     let particles = []; const maxParticles = 60;
 
     const myPlayer = {
-      x: 100, y: worldHeight - 200, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0,
+      x: 0, y: 0, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0,
       health: 100, maxHealth: 100, fuel: 250, maxFuel: 250, ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, lastShotTime: 0,
       name: "Unknown", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0, lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100,
       weapon: 'rifle', weaponExpire: 0, shield: 0, maxShield: 50, speedBoostTimer: 0, killStreak: 0, invincibleTimer: 0
@@ -210,7 +211,12 @@
 
     function resetRun() {
       isPlaying = true;
-      myPlayer.x = 100; myPlayer.y = worldHeight - 200; myPlayer.dx = 0; myPlayer.dy = 0;
+      
+      // NEW: Drop player from the sky at a completely random location!
+      myPlayer.x = Math.random() * 8000 + 1000; 
+      myPlayer.y = Math.random() * 500 + 200; 
+      myPlayer.dx = 0; myPlayer.dy = 0;
+      
       myPlayer.health = myPlayer.maxHealth; myPlayer.fuel = myPlayer.maxFuel;
       myPlayer.ammo = WEAPONS['rifle'].ammo; myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
       myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0;
@@ -222,7 +228,7 @@
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
-      npcs = spawnNPCs(6); // Spawn 6 local AI Bots
+      npcs = spawnNPCs(6); 
       buildMap(); initParticles(); gameLoop();
     }
 
@@ -277,7 +283,7 @@
         let bvx = Math.cos(angle) * w.speed, bvy = Math.sin(angle) * w.speed;
         let radius = myPlayer.weapon === 'sniper' ? 6 : myPlayer.weapon === 'shotgun' ? 3 : 4;
         bullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius, weapon: myPlayer.weapon, color: w.bulletColor });
-        if (isOnline && socket && socket.connected) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius, ownerId: 'me' });
+        if (isOnline && socket && socket.connected) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius, ownerId: socket.id });
       }
     }
 
@@ -341,6 +347,9 @@
                     myPlayer.kills++; myPlayer.killStreak++; checkStreak(myPlayer.killStreak);
                     killFeed.push({ text: `☠ YOU → ${npc.name}`, timer: 5.0, color: '#ff4757' });
                     spawnCoins(npc.x + 20, npc.y + 20);
+                    
+                    // NEW: Respawn Bot safely after 3 seconds
+                    setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
                 }
             }
         });
@@ -391,7 +400,26 @@
               destroyed = true;
               npc.health -= 15;
               damageNumbers.push({ x: npc.x + 20, y: npc.y - 5, value: 15, vy: -2.5, opacity: 2.2, color: '#ffffff', size: 16 });
-              if (npc.health <= 0) { spawnCoins(npc.x + 20, npc.y + 20); killFeed.push({ text: `🤖 BOT KILLED BOT`, timer: 4.0, color: '#bdc3c7' }); }
+              
+              if (npc.health <= 0) { 
+                  spawnCoins(npc.x + 20, npc.y + 20); 
+                  
+                  // NEW: Dynamic Killfeed detects WHO killed the bot (Real player or Bot)
+                  let killerName = "UNKNOWN";
+                  let killerNPC = npcs.find(k => k.id === b.ownerId);
+                  if (killerNPC) {
+                      killerName = killerNPC.name;
+                  } else if (networkPlayers[b.ownerId]) {
+                      killerName = networkPlayers[b.ownerId].name; // If a real online player killed them
+                  } else {
+                      killerName = "OPERATOR"; // Fallback
+                  }
+
+                  killFeed.push({ text: `🤖 ${killerName} → ${npc.name}`, timer: 4.0, color: '#bdc3c7' }); 
+                  
+                  // NEW: Respawn Bot safely after 3 seconds
+                  setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
+              }
               break;
             }
           }
