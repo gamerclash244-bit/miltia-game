@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Proximity Sync</title>
+  <title>BaylerBay Ops - Mobile & Map Fixes</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
@@ -15,67 +15,230 @@
       --panel: rgba(15, 22, 30, 0.97);
       --border: rgba(85, 239, 196, 0.25);
     }
+
     * { box-sizing: border-box; }
-    body { margin: 0; overflow: hidden; background: var(--dark); font-family: 'Rajdhani', sans-serif; touch-action: none; }
-    #gameCanvas { display: none; cursor: crosshair; }
-    .menu-screen {
-      position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: var(--panel); display: flex; flex-direction: column;
-      align-items: center; justify-content: center; color: white; text-align: center; z-index: 10;
+    body {
+      margin: 0; overflow: hidden;
+      background: var(--dark);
+      font-family: 'Rajdhani', sans-serif;
+      touch-action: none;
     }
+
+    /* CURSOR FIX: Removed the crosshair */
+    #gameCanvas { display: none; cursor: default; }
+
+    /* ── MENU BASE ── */
+    .menu-screen {
+      position: absolute; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: var(--panel);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      color: white; text-align: center; z-index: 10;
+    }
+
     .menu-screen::before {
-      content: ''; position: absolute; inset: 0;
-      background: repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px);
-      pointer-events: none; z-index: 0;
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.08) 3px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 0;
     }
     .menu-screen > * { position: relative; z-index: 1; }
-    h1 { font-size: 4rem; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 6px; color: var(--accent); text-shadow: 0 0 24px rgba(85,239,196,0.5); }
-    .death-title { color: var(--danger); font-size: 5.5rem; text-shadow: 0 0 32px rgba(255,71,87,0.6); }
-    .subtitle { font-family: 'Share Tech Mono', monospace; font-size: 0.95rem; color: #7f8c8d; margin-bottom: 32px; letter-spacing: 2px; }
-    button.ui-btn {
-      padding: 18px 48px; font-size: 1.35rem; font-family: 'Rajdhani', sans-serif; font-weight: 700;
-      letter-spacing: 3px; text-transform: uppercase; background: var(--danger); color: white;
-      border: none; border-radius: 3px; cursor: pointer; margin: 8px; width: 290px;
-      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
-      transition: background 0.15s, transform 0.1s; position: relative;
+
+    /* ── TITLES ── */
+    h1 {
+      font-size: 4rem;
+      margin: 0 0 8px 0;
+      text-transform: uppercase;
+      letter-spacing: 6px;
+      color: var(--accent);
+      text-shadow: 0 0 24px rgba(85,239,196,0.5);
     }
-    button.ui-btn::after { content: ''; position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.15); clip-path: inherit; pointer-events: none; }
+    .death-title {
+      color: var(--danger);
+      font-size: 5.5rem;
+      text-shadow: 0 0 32px rgba(255,71,87,0.6);
+    }
+    .subtitle {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.95rem;
+      color: #7f8c8d;
+      margin-bottom: 32px;
+      letter-spacing: 2px;
+    }
+
+    /* ── BUTTONS ── */
+    button.ui-btn {
+      padding: 18px 48px;
+      font-size: 1.35rem;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: var(--danger);
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      margin: 8px;
+      width: 290px;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+      transition: background 0.15s, transform 0.1s;
+      position: relative;
+    }
+    button.ui-btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 1px solid rgba(255,255,255,0.15);
+      clip-path: inherit;
+      pointer-events: none;
+    }
     button.ui-btn:hover { background: #ff6b81; transform: translateY(-1px); }
     button.ui-btn:active { background: #c0392b; transform: translateY(0); }
-    button.ui-btn.secondary { background: rgba(44, 62, 80, 0.9); border: 1px solid rgba(127,140,141,0.4); }
+    button.ui-btn.secondary {
+      background: rgba(44, 62, 80, 0.9);
+      border: 1px solid rgba(127,140,141,0.4);
+    }
     button.ui-btn.secondary:hover { background: #2c3e50; }
+
+    /* ── INPUTS ── */
     .setting-group { margin: 16px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
     input[type="text"], input[type="password"] {
-      padding: 16px 20px; font-size: 1.3rem; font-family: 'Share Tech Mono', monospace;
-      letter-spacing: 2px; border-radius: 3px; border: 1px solid var(--border);
-      background: rgba(255,255,255,0.05); color: white; text-align: center;
-      width: 290px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+      padding: 16px 20px;
+      font-size: 1.3rem;
+      font-family: 'Share Tech Mono', monospace;
+      letter-spacing: 2px;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.05);
+      color: white;
+      text-align: center;
+      width: 290px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(85,239,196,0.15); }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(85,239,196,0.15);
+    }
     input::placeholder { color: #4a5a6a; }
-    #loginStatus { font-family: 'Share Tech Mono', monospace; font-size: 1rem; letter-spacing: 1px; padding: 10px 20px; border-radius: 3px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); min-width: 290px; margin-bottom: 8px; }
-    #kickedOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; }
-    #kickedOverlay.visible { display: flex; }
-    #kickedOverlay h2 { font-size: 2.6rem; color: var(--danger); text-transform: uppercase; letter-spacing: 4px; margin-bottom: 12px; text-shadow: 0 0 20px rgba(255,71,87,0.5); }
-    #kickedOverlay p { font-family: 'Share Tech Mono', monospace; color: #bdc3c7; font-size: 1rem; margin-bottom: 28px; }
-    .color-picker { display: flex; gap: 18px; margin-top: 12px; }
-    .color-btn { width: 52px; height: 52px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s; }
-    .color-btn:hover { transform: scale(1.1); }
-    .color-btn.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 12px rgba(255,255,255,0.4); }
-    #leaderboardPanel {
-      position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 360px;
-      background: rgba(12, 18, 26, 0.95); border: 1px solid rgba(241,196,15,0.4); border-radius: 4px;
-      padding: 24px; color: white; z-index: 20; display: none; box-shadow: 0 0 24px rgba(241,196,15,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+
+    /* ── STATUS LINE ── */
+    #loginStatus {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      padding: 10px 20px;
+      border-radius: 3px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+      min-width: 290px;
+      margin-bottom: 8px;
     }
-    #leaderboardPanel h3 { margin: 0 0 16px 0; font-size: 1.4rem; color: var(--gold); text-align: center; text-transform: uppercase; letter-spacing: 5px; font-weight: 700; }
+
+    /* ── KICKED OVERLAY ── */
+    #kickedOverlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 100;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: white;
+    }
+    #kickedOverlay.visible { display: flex; }
+    #kickedOverlay h2 {
+      font-size: 2.6rem;
+      color: var(--danger);
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 12px;
+      text-shadow: 0 0 20px rgba(255,71,87,0.5);
+    }
+    #kickedOverlay p {
+      font-family: 'Share Tech Mono', monospace;
+      color: #bdc3c7;
+      font-size: 1rem;
+      margin-bottom: 28px;
+    }
+
+    /* ── COLOR PICKER ── */
+    .color-picker { display: flex; gap: 18px; margin-top: 12px; flex-wrap: wrap; justify-content: center; max-width: 300px; }
+    .color-btn {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .color-btn:hover { transform: scale(1.1); }
+    .color-btn.selected {
+      border-color: white;
+      transform: scale(1.15);
+      box-shadow: 0 0 12px rgba(255,255,255,0.4);
+    }
+
+    /* ── LEADERBOARD ── */
+    #leaderboardPanel {
+      position: absolute; right: 24px; top: 50%; transform: translateY(-50%);
+      width: 360px;
+      background: rgba(12, 18, 26, 0.95);
+      border: 1px solid rgba(241,196,15,0.4);
+      border-radius: 4px;
+      padding: 24px;
+      color: white; z-index: 20; display: none;
+      box-shadow: 0 0 24px rgba(241,196,15,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    #leaderboardPanel h3 {
+      margin: 0 0 16px 0;
+      font-size: 1.4rem;
+      color: var(--gold);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 5px;
+      font-weight: 700;
+    }
     .lb-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 1rem; }
-    .lb-table th { border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 10px; color: #7f8c8d; font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; font-family: 'Share Tech Mono', monospace; }
+    .lb-table th {
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      padding-bottom: 10px;
+      color: #7f8c8d;
+      font-size: 0.8rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-family: 'Share Tech Mono', monospace;
+    }
     .lb-table td { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 1rem; }
     .lb-rank { font-weight: 700; color: var(--gold); width: 34px; font-size: 1.1rem; }
+
+    /* ── DEATH SCREEN DETAILS ── */
     #finalKillsText { font-size: 2rem; margin-bottom: 32px; color: var(--gold); letter-spacing: 3px; }
+
+    /* ── MOBILE UI FIXES ── */
     @media (max-width: 800px) {
+      /* Allow menus to scroll instead of crunching */
+      .menu-screen {
+        justify-content: flex-start;
+        padding: 40px 20px;
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+      }
       h1 { font-size: 2.8rem; letter-spacing: 3px; }
-      #leaderboardPanel { position: relative; right: auto; top: auto; transform: none; margin-top: 20px; width: 92%; max-width: 360px; }
+      #leaderboardPanel { 
+        position: relative; right: auto; top: auto; transform: none; 
+        margin: 20px auto 40px auto; width: 100%; max-width: 360px; 
+      }
     }
   </style>
 </head>
@@ -101,8 +264,17 @@
   <div id="leaderboardPanel">
     <h3>Top Operators</h3>
     <table class="lb-table">
-      <thead><tr><th>#</th><th>Callsign</th><th style="text-align:center;" title="Best Single-Life Kills">1-Life</th><th style="text-align:right;">Total</th></tr></thead>
-      <tbody id="leaderboardBody"><tr><td colspan="4" style="text-align:center; padding-top:16px; color:#555; font-family:'Share Tech Mono',monospace;">Loading data...</td></tr></tbody>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Callsign</th>
+          <th style="text-align:center;" title="Best Single-Life Kills">1-Life</th>
+          <th style="text-align:right;">Total</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboardBody">
+        <tr><td colspan="4" style="text-align:center; padding-top:16px; color:#555; font-family:'Share Tech Mono',monospace;">Loading data...</td></tr>
+      </tbody>
     </table>
   </div>
 
@@ -195,16 +367,17 @@
     //  PLAYER
     // ══════════════════════════════════════════
     const myPlayer = {
-      x: 100, y: worldHeight - 200, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0,
-      health: 100, maxHealth: 100, fuel: 250, maxFuel: 250, ammo: 15, maxAmmo: 15,
-      isReloading: false, reloadStartTime: 0, lastShotTime: 0,
+      x: 100, y: worldHeight - 200, width: 40, height: 40, dx: 0, dy: 0, speed: 6,
+      jetpackForce: 0.9, gravity: 0.35, aimAngle: 0,
+      health: 100, maxHealth: 100, fuel: 250, maxFuel: 250,
+      ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, reloadDuration: 1500, lastShotTime: 0,
       name: "Unknown", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0,
       lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100,
-      // NEW FIELDS
       weapon: 'rifle', shield: 0, maxShield: 50, speedBoostTimer: 0,
       killStreak: 0, invincibleTimer: 0
     };
-    let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
+    let isPlaying = false; let bullets = [];
+    const keys = { w: false, a: false, d: false, fire: false };
 
     // ══════════════════════════════════════════
     //  NEW SYSTEMS
@@ -216,45 +389,70 @@
     let streakAnnounce = { text: '', opacity: 0 };
     let weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
 
-    // ══════════════════════════════════════════
-    //  RETURN TO LOGIN
-    // ══════════════════════════════════════════
     function returnToLogin() {
       document.getElementById('kickedOverlay').classList.remove('visible');
-      canvas.style.display = 'none'; isPlaying = false;
+      canvas.style.display = 'none';
+      isPlaying = false;
       Object.values(menus).forEach(m => m.style.display = 'none');
       leaderboardPanel.style.display = 'none';
       const status = document.getElementById('loginStatus');
-      status.innerText = 'Server Online. Please Authenticate.'; status.style.color = '#2ecc71';
-      authBtn.style.display = 'block'; menus.login.style.display = 'flex';
+      status.innerText = 'Server Online. Please Authenticate.';
+      status.style.color = '#2ecc71';
+      authBtn.style.display = 'block';
+      menus.login.style.display = 'flex';
     }
 
-    // ══════════════════════════════════════════
-    //  NETWORK INIT
-    // ══════════════════════════════════════════
     function initNetwork() {
       const myRenderURL = "https://baylerbay-militia-server.onrender.com";
       const loginStatus = document.getElementById('loginStatus');
       if (typeof io === 'undefined') { loginStatus.innerText = "Error: Blocked by browser."; loginStatus.style.color = "#e74c3c"; return; }
       if (socket) return;
-      loginStatus.innerText = "Waking up server... (Can take 50 seconds)"; loginStatus.style.color = "#f39c12";
+      loginStatus.innerText = "Waking up server... (Can take 50 seconds)";
+      loginStatus.style.color = "#f39c12";
       try {
         socket = io(myRenderURL, { reconnectionAttempts: 12, reconnectionDelay: 5000 });
-        socket.on('connect', () => { isOnline = true; loginStatus.innerText = "Server Online. Please Authenticate."; loginStatus.style.color = "#2ecc71"; authBtn.style.display = "block"; });
-        socket.on('newPlayer', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y; networkPlayers[playerInfo.id].localHealth = playerInfo.player.health; networkPlayers[playerInfo.id].countedKill = false; });
+
+        socket.on('connect', () => {
+          isOnline = true;
+          loginStatus.innerText = "Server Online. Please Authenticate.";
+          loginStatus.style.color = "#2ecc71";
+          authBtn.style.display = "block";
+        });
+
+        socket.on('newPlayer', (playerInfo) => {
+          networkPlayers[playerInfo.id] = playerInfo.player;
+          networkPlayers[playerInfo.id].targetX = playerInfo.player.x;
+          networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
+          networkPlayers[playerInfo.id].localHealth = playerInfo.player.health;
+          networkPlayers[playerInfo.id].countedKill = false;
+        });
+
         socket.on('playerMoved', (playerInfo) => {
           if (networkPlayers[playerInfo.id]) {
             let np = networkPlayers[playerInfo.id];
-            np.targetX = playerInfo.player.x; np.targetY = playerInfo.player.y;
-            np.aimAngle = playerInfo.player.aimAngle; np.health = playerInfo.player.health;
+            np.targetX = playerInfo.player.x;
+            np.targetY = playerInfo.player.y;
+            np.aimAngle = playerInfo.player.aimAngle;
+            np.health = playerInfo.player.health; // for rendering UI bar
             np.weapon = playerInfo.player.weapon;
-            if (playerInfo.player.health === 100) { np.localHealth = 100; np.countedKill = false; }
-            else if (np.localHealth === undefined || playerInfo.player.health < np.localHealth) { np.localHealth = playerInfo.player.health; }
+
+            if (playerInfo.player.health === 100) {
+                np.localHealth = 100;
+                np.countedKill = false; 
+            } else if (np.localHealth === undefined || playerInfo.player.health < np.localHealth) {
+                np.localHealth = playerInfo.player.health;
+            }
           }
         });
+
         socket.on('networkBullet', (b) => { networkBullets.push(b); });
         socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
-        socket.on('reconnect_failed', () => { loginStatus.innerText = "Server unreachable."; loginStatus.style.color = "#e74c3c"; isOnline = false; });
+        socket.on('reconnect_failed', () => {
+          loginStatus.innerText = "Server unreachable.";
+          loginStatus.style.color = "#e74c3c";
+          isOnline = false;
+        });
+
         socket.on('kicked', (data) => {
           isPlaying = false;
           const msg = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.';
@@ -262,19 +460,27 @@
           document.getElementById('kickedOverlay').classList.add('visible');
           canvas.style.display = 'none';
         });
+
         socket.on('leaderboardUpdate', (topPlayers) => {
           let html = '';
-          topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak}</td><td style="text-align:right;">${p.totalKills}</td></tr>`; });
+          topPlayers.forEach((p, index) => {
+            const trophy = index === 0 ? '👑' : (index + 1) + '.';
+            html += `<tr>
+              <td class="lb-rank">${trophy}</td>
+              <td>${p.name}</td>
+              <td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak}</td>
+              <td style="text-align:right;">${p.totalKills}</td>
+            </tr>`;
+          });
           if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>';
           document.getElementById('leaderboardBody').innerHTML = html;
         });
+
       } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
     }
+
     initNetwork();
 
-    // ══════════════════════════════════════════
-    //  AUTH + BUTTON HANDLERS
-    // ══════════════════════════════════════════
     authBtn.addEventListener('click', () => {
       const name = document.getElementById('loginName').value.trim();
       const pin = document.getElementById('loginPin').value.trim();
@@ -283,23 +489,40 @@
       status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f";
       socket.emit('login', { name, pin }, (res) => {
         if (res.success) {
-          myPlayer.name = name; networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
-          for (let id in networkPlayers) { networkPlayers[id].targetX = networkPlayers[id].x; networkPlayers[id].targetY = networkPlayers[id].y; networkPlayers[id].localHealth = networkPlayers[id].health; networkPlayers[id].countedKill = false; }
-          menus.login.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block';
-        } else { status.innerText = res.message; status.style.color = "#e74c3c"; }
+          myPlayer.name = name;
+          networkPlayers = res.currentPlayers;
+          delete networkPlayers[socket.id];
+          
+          for (let id in networkPlayers) {
+            networkPlayers[id].targetX = networkPlayers[id].x;
+            networkPlayers[id].targetY = networkPlayers[id].y;
+            networkPlayers[id].localHealth = networkPlayers[id].health;
+            networkPlayers[id].countedKill = false;
+          }
+          
+          menus.login.style.display = 'none';
+          menus.main.style.display = 'flex';
+          leaderboardPanel.style.display = 'block';
+        } else {
+          status.innerText = res.message;
+          status.style.color = "#e74c3c";
+        }
       });
     });
 
     settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
-    colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
+    colorBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        colorBtns.forEach(b => b.classList.remove('selected'));
+        e.target.classList.add('selected');
+        myPlayer.color = e.target.dataset.color;
+      });
+    });
     saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
     playBtn.addEventListener('click', () => { menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); });
     backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
     respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
 
-    // ══════════════════════════════════════════
-    //  RESET RUN
-    // ══════════════════════════════════════════
     function resetRun() {
       isPlaying = true;
       myPlayer.x = 100; myPlayer.y = worldHeight - 200; myPlayer.dx = 0; myPlayer.dy = 0;
@@ -319,24 +542,22 @@
       buildMap(); initParticles(); gameLoop();
     }
 
-    // ══════════════════════════════════════════
-    //  KILL PLAYER
-    // ══════════════════════════════════════════
     function killPlayer() {
       isPlaying = false; myPlayer.health = 0;
       if (isOnline && socket && socket.connected) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0, weapon: myPlayer.weapon });
         socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
       }
-      joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
+      joyLeft.active = false; joyRight.active = false;
+      keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       document.getElementById('finalKillsText').innerText = `YOUR STREAK: ${myPlayer.kills}`;
       canvas.style.display = 'none'; menus.death.style.display = 'flex'; leaderboardPanel.style.display = 'block';
     }
 
-    // ══════════════════════════════════════════
-    //  PARTICLES
-    // ══════════════════════════════════════════
-    function initParticles() { particles = []; for (let i = 0; i < maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 }); }
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 });
+    }
     function updateParticles() {
       let time = Date.now() * 0.002;
       for (let p of particles) {
@@ -353,9 +574,6 @@
     function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; initParticles(); }
     window.addEventListener('resize', resizeCanvas); resizeCanvas();
 
-    // ══════════════════════════════════════════
-    //  STREAK SYSTEM
-    // ══════════════════════════════════════════
     function checkStreak(ks) {
       if (ks === 2) { streakAnnounce = { text: 'DOUBLE KILL!', opacity: 3.0 }; }
       else if (ks === 3) { streakAnnounce = { text: '🔥 TRIPLE KILL! +SPEED', opacity: 3.5 }; myPlayer.speedBoostTimer = Date.now() + 6000; }
@@ -365,9 +583,6 @@
       else if (ks > 10 && ks % 5 === 0) { streakAnnounce = { text: `👑 ${ks} KILL STREAK!`, opacity: 4.0 }; myPlayer.shield = myPlayer.maxShield; }
     }
 
-    // ══════════════════════════════════════════
-    //  COIN BURST ON KILL
-    // ══════════════════════════════════════════
     function spawnCoins(wx, wy) {
       for (let i = 0; i < 10; i++) {
         let angle = Math.random() * Math.PI * 2;
@@ -376,10 +591,20 @@
       }
     }
 
-    // ══════════════════════════════════════════
-    //  MAP BUILDER — MULTI-TIER + MOVING PLATFORMS
-    // ══════════════════════════════════════════
     function mulberry32(a) { return function() { var t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+    // COLLISION CHECK TO PREVENT PLATFORM OVERLAP
+    function checkOverlap(nx, ny, nw, nh) {
+      const PAD = 40; // padding to ensure jumps are possible
+      for (let obj of map) {
+        if (obj.type === 'wall' || obj.type === 'floor') continue;
+        if (nx < obj.x + obj.w + PAD && nx + nw + PAD > obj.x &&
+            ny < obj.y + obj.h + PAD && ny + nh + PAD > obj.y) {
+          return true;
+        }
+      }
+      return false;
+    }
 
     function spawnPowerup(x, y, rand) {
       if (rand() > 0.45) return;
@@ -399,118 +624,152 @@
       ];
       powerups = [];
       let rand = mulberry32(12345);
-      let now = Date.now(); // for time-based moving platform seed
 
-      // ── TIER 0: Low ground (dense) ──
+      // TIER 0: Low ground
       let cx = 200;
       while (cx < worldWidth - 400) {
         let pw = 130 + rand() * 270, py = worldHeight - 130 - rand() * 520;
-        map.push({ x: cx, y: py, w: pw, h: 28, type: "plat", tier: 0 });
-        if (rand() > 0.45) { let cw = 38 + rand() * 28, ch = 50 + rand() * 40; map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); }
-        spawnPowerup(cx + pw * rand(), py - 32, rand);
+        if (!checkOverlap(cx, py, pw, 28)) {
+            map.push({ x: cx, y: py, w: pw, h: 28, type: "plat", tier: 0 });
+            if (rand() > 0.45) { 
+                let cw = 38 + rand() * 28, ch = 50 + rand() * 40; 
+                if(!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) {
+                    map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); 
+                }
+            }
+            spawnPowerup(cx + pw * rand(), py - 32, rand);
+        }
         cx += pw + 40 + rand() * 140;
       }
 
-      // ── TIER 1: Mid-low — some moving ──
+      // TIER 1: Mid-low
       cx = 350;
       while (cx < worldWidth - 600) {
         let pw = 110 + rand() * 200, py = worldHeight - 650 - rand() * 380;
-        let isMoving = rand() > 0.68;
-        let plat = { x: cx, y: py, w: pw, h: 24, type: "plat", tier: 1 };
-        if (isMoving) {
-          let range = 110 + rand() * 220;
-          plat.moving = true;
-          plat.moveBase = cx; plat.moveRange = range;
-          plat.moveSpeed = 0.00045 + rand() * 0.00065;
-          plat.movePhase = rand() * Math.PI * 2;
+        if (!checkOverlap(cx, py, pw, 24)) {
+            let isMoving = rand() > 0.68;
+            let plat = { x: cx, y: py, w: pw, h: 24, type: "plat", tier: 1 };
+            if (isMoving) {
+              plat.moving = true; plat.moveBase = cx; plat.moveRange = 110 + rand() * 220;
+              plat.moveSpeed = 0.00045 + rand() * 0.00065; plat.movePhase = rand() * Math.PI * 2;
+            }
+            map.push(plat);
+            if (rand() > 0.5) { 
+                let cw = 32 + rand() * 24, ch = 28 + rand() * 28; 
+                if (!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) {
+                    map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); 
+                }
+            }
+            spawnPowerup(cx + pw * rand(), py - 32, rand);
         }
-        map.push(plat);
-        if (rand() > 0.5) { let cw = 32 + rand() * 24; map.push({ x: cx + pw/2 - cw/2, y: py - (28 + rand() * 28), w: cw, h: 28 + rand() * 28, type: "cover" }); }
-        spawnPowerup(cx + pw * rand(), py - 32, rand);
         cx += pw + 80 + rand() * 240;
       }
 
-      // ── TIER 2: Mid-high — mostly moving ──
+      // TIER 2: Mid-high
       cx = 500;
       while (cx < worldWidth - 800) {
         let pw = 90 + rand() * 170, py = worldHeight - 1100 - rand() * 480;
-        let isMoving = rand() > 0.45;
-        let plat = { x: cx, y: py, w: pw, h: 22, type: "plat", tier: 2 };
-        if (isMoving) {
-          let range = 90 + rand() * 200;
-          plat.moving = true;
-          plat.moveBase = cx; plat.moveRange = range;
-          plat.moveSpeed = 0.0006 + rand() * 0.001;
-          plat.movePhase = rand() * Math.PI * 2;
-          plat.moveY = rand() > 0.55; // some move vertically
-          if (plat.moveY) { plat.moveBaseY = py; plat.moveRangeY = 60 + rand() * 100; plat.moveSpeedY = 0.0004 + rand() * 0.0006; plat.movePhaseY = rand() * Math.PI * 2; }
+        if (!checkOverlap(cx, py, pw, 22)) {
+            let isMoving = rand() > 0.45;
+            let plat = { x: cx, y: py, w: pw, h: 22, type: "plat", tier: 2 };
+            if (isMoving) {
+              plat.moving = true; plat.moveBase = cx; plat.moveRange = 90 + rand() * 200;
+              plat.moveSpeed = 0.0006 + rand() * 0.001; plat.movePhase = rand() * Math.PI * 2;
+              plat.moveY = rand() > 0.55; 
+              if (plat.moveY) { plat.moveBaseY = py; plat.moveRangeY = 60 + rand() * 100; plat.moveSpeedY = 0.0004 + rand() * 0.0006; plat.movePhaseY = rand() * Math.PI * 2; }
+            }
+            map.push(plat);
+            spawnPowerup(cx + pw * rand(), py - 32, rand);
         }
-        map.push(plat);
-        spawnPowerup(cx + pw * rand(), py - 32, rand);
         cx += pw + 120 + rand() * 320;
       }
 
-      // ── TIER 3: High ceiling — sniper nests ──
+      // TIER 3: High ceiling
       cx = 700;
       while (cx < worldWidth - 1000) {
         let pw = 120 + rand() * 280, py = 120 + rand() * 420;
-        let isMoving = rand() > 0.6;
-        let plat = { x: cx, y: py, w: pw, h: 20, type: "plat", tier: 3 };
-        if (isMoving) {
-          let range = 80 + rand() * 180;
-          plat.moving = true; plat.moveBase = cx; plat.moveRange = range;
-          plat.moveSpeed = 0.0003 + rand() * 0.0005; plat.movePhase = rand() * Math.PI * 2;
+        if (!checkOverlap(cx, py, pw, 20)) {
+            let isMoving = rand() > 0.6;
+            let plat = { x: cx, y: py, w: pw, h: 20, type: "plat", tier: 3 };
+            if (isMoving) {
+              plat.moving = true; plat.moveBase = cx; plat.moveRange = 80 + rand() * 180;
+              plat.moveSpeed = 0.0003 + rand() * 0.0005; plat.movePhase = rand() * Math.PI * 2;
+            }
+            map.push(plat);
+            if (rand() > 0.5) { 
+                let cw = 30 + rand() * 25, ch = 20 + rand() * 24; 
+                if(!checkOverlap(cx + pw * rand() - 15, py - ch, cw, ch)) {
+                    map.push({ x: cx + pw * rand() - 15, y: py - ch, w: cw, h: ch, type: "cover" }); 
+                }
+            }
+            spawnPowerup(cx + pw * rand(), py + 22, rand);
         }
-        map.push(plat);
-        if (rand() > 0.5) { let cw = 30 + rand() * 25; map.push({ x: cx + pw * rand() - 15, y: py - (20 + rand() * 24), w: cw, h: 20 + rand() * 24, type: "cover" }); }
-        spawnPowerup(cx + pw * rand(), py + 22, rand);
         cx += pw + 220 + rand() * 500;
       }
 
-      // ── VERTICAL TOWERS (connecting tiers) ──
+      // VERTICAL TOWERS (Carefully spaced to not crash through platforms)
       let tx = 600;
       while (tx < worldWidth - 500) {
-        let tH = 200 + rand() * 600;
-        let tY = worldHeight - 700 - rand() * 600;
-        let tW = 20 + rand() * 15;
-        map.push({ x: tx, y: tY, w: tW, h: tH, type: "cover" });
-        // gap laddering platforms on tower sides
-        for (let gy = tY + 40; gy < tY + tH - 40; gy += 100 + rand() * 80) {
-          map.push({ x: tx - 80 - rand() * 40, y: gy, w: 70 + rand() * 30, h: 16, type: "plat", tier: 1 });
+        let tH = 200 + rand() * 600, tY = worldHeight - 700 - rand() * 600, tW = 20 + rand() * 15;
+        if (!checkOverlap(tx, tY, tW, tH)) {
+            map.push({ x: tx, y: tY, w: tW, h: tH, type: "cover" });
+            for (let gy = tY + 40; gy < tY + tH - 40; gy += 100 + rand() * 80) {
+              if(!checkOverlap(tx - 80 - rand() * 40, gy, 70 + rand() * 30, 16)) {
+                  map.push({ x: tx - 80 - rand() * 40, y: gy, w: 70 + rand() * 30, h: 16, type: "plat", tier: 1 });
+              }
+            }
         }
         tx += 500 + rand() * 900;
       }
 
-      // ── FLOATING ISLAND CLUSTERS ──
+      // FLOATING ISLANDS
       let fx = 1000;
       while (fx < worldWidth - 1200) {
-        let baseY = 400 + rand() * 800;
-        let clusterX = fx;
+        let baseY = 400 + rand() * 800, clusterX = fx;
         for (let ci = 0; ci < 3 + Math.floor(rand() * 3); ci++) {
           let pw = 80 + rand() * 120, py = baseY + (rand() - 0.5) * 200;
-          map.push({ x: clusterX, y: py, w: pw, h: 20, type: "plat", tier: 2 });
-          spawnPowerup(clusterX + pw/2 - 15, py - 32, rand);
+          if(!checkOverlap(clusterX, py, pw, 20)) {
+              map.push({ x: clusterX, y: py, w: pw, h: 20, type: "plat", tier: 2 });
+              spawnPowerup(clusterX + pw/2 - 15, py - 32, rand);
+          }
           clusterX += pw + 30 + rand() * 60;
         }
         fx += 1200 + rand() * 1500;
       }
     }
 
-    // ══════════════════════════════════════════
-    //  INPUT HANDLERS
-    // ══════════════════════════════════════════
     window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; });
     window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=false; if (k==='d'||k==='arrowright') keys.d=false; if (k==='w'||k==='arrowup'||k===' ') keys.w=false; });
     canvas.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
     canvas.addEventListener('mousedown', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = true; });
     canvas.addEventListener('mouseup', () => { if (!joyRight.active) keys.fire = false; });
-    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (!isPlaying) return; for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (t.clientX < canvas.width / 2) { joyLeft.active=true; joyLeft.touchId=t.identifier; joyLeft.startX=t.clientX; joyLeft.startY=t.clientY; joyLeft.dx=0; joyLeft.dy=0; } else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; } } }, {passive: false});
-    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isPlaying) return; for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier===joyLeft.touchId) { let dx=t.clientX-joyLeft.startX; let dy=t.clientY-joyLeft.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyLeft.dx=dx; joyLeft.dy=dy; } if (joyRight.active && t.identifier===joyRight.touchId) { let dx=t.clientX-joyRight.startX; let dy=t.clientY-joyRight.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyRight.dx=dx; joyRight.dy=dy; } } }, {passive: false});
-    canvas.addEventListener('touchend', (e) => { e.preventDefault(); for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier===joyLeft.touchId) { joyLeft.active=false; keys.a=false; keys.d=false; keys.w=false; } if (joyRight.active && t.identifier===joyRight.touchId) { joyRight.active=false; keys.fire=false; } } }, {passive: false});
+    
+    // TOUCH JOYS
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault(); if (!isPlaying) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let t = e.changedTouches[i];
+        if (t.clientX < canvas.width / 2) { joyLeft.active=true; joyLeft.touchId=t.identifier; joyLeft.startX=t.clientX; joyLeft.startY=t.clientY; joyLeft.dx=0; joyLeft.dy=0; }
+        else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; }
+      }
+    }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault(); if (!isPlaying) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let t = e.changedTouches[i];
+        if (joyLeft.active && t.identifier===joyLeft.touchId) { let dx=t.clientX-joyLeft.startX; let dy=t.clientY-joyLeft.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyLeft.dx=dx; joyLeft.dy=dy; }
+        if (joyRight.active && t.identifier===joyRight.touchId) { let dx=t.clientX-joyRight.startX; let dy=t.clientY-joyRight.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyRight.dx=dx; joyRight.dy=dy; }
+      }
+    }, {passive: false});
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let t = e.changedTouches[i];
+        if (joyLeft.active && t.identifier===joyLeft.touchId) { joyLeft.active=false; keys.a=false; keys.d=false; keys.w=false; }
+        if (joyRight.active && t.identifier===joyRight.touchId) { joyRight.active=false; keys.fire=false; }
+      }
+    }, {passive: false});
 
-    // ══════════════════════════════════════════
-    //  SHOOT — supports weapons
-    // ══════════════════════════════════════════
     function shoot() {
       const w = WEAPONS[myPlayer.weapon];
       let bx = myPlayer.x + myPlayer.width/2, by = myPlayer.y + myPlayer.height/2;
@@ -524,33 +783,27 @@
       }
     }
 
-    // ══════════════════════════════════════════
-    //  UPDATE
-    // ══════════════════════════════════════════
     function update() {
-      // ── MOVING PLATFORMS (time-based, deterministic) ──
       for (let obj of map) {
         if (!obj.moving) continue;
         obj.x = obj.moveBase + Math.sin(Date.now() * obj.moveSpeed + obj.movePhase) * obj.moveRange;
         if (obj.moveY) obj.y = obj.moveBaseY + Math.sin(Date.now() * obj.moveSpeedY + obj.movePhaseY) * obj.moveRangeY;
       }
 
-      // ── INPUT ──
       if (joyLeft.active) { keys.a = joyLeft.dx < -15; keys.d = joyLeft.dx > 15; keys.w = joyLeft.dy < -15; }
       if (joyRight.active) { myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); keys.fire = Math.hypot(joyRight.dx, joyRight.dy) > 20; }
       else { const wx = mouseX + camera.x, wy = mouseY + camera.y; myPlayer.aimAngle = Math.atan2(wy - (myPlayer.y + myPlayer.height/2), wx - (myPlayer.x + myPlayer.width/2)); }
 
-      // ── BIOME ──
       let newBiome = targetBiome;
       for (let b of biomes) { if (myPlayer.x < b.endX) { newBiome = b; break; } }
       if (newBiome !== targetBiome) { targetBiome = newBiome; biomePopupName = targetBiome.name; biomePopupOpacity = 2.5; }
       if (biomePopupOpacity > 0) biomePopupOpacity -= 0.02;
+
       currentSky[0] += (targetBiome.sky[0] - currentSky[0]) * 0.05;
       currentSky[1] += (targetBiome.sky[1] - currentSky[1]) * 0.05;
       currentSky[2] += (targetBiome.sky[2] - currentSky[2]) * 0.05;
       updateParticles();
 
-      // ── PLAYER MOVEMENT ──
       let spd = myPlayer.speed;
       if (myPlayer.speedBoostTimer > Date.now()) spd *= 1.65;
       let prevX = myPlayer.x;
@@ -563,7 +816,6 @@
       myPlayer.y += myPlayer.dy;
       for (let obj of map) { if (myPlayer.x < obj.x+obj.w && myPlayer.x+myPlayer.width > obj.x && myPlayer.y < obj.y+obj.h && myPlayer.y+myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
 
-      // ── NETWORK PLAYERS ──
       for (let id in networkPlayers) {
         let np = networkPlayers[id]; if (np.health <= 0) continue;
         if (np.targetX !== undefined) {
@@ -572,14 +824,12 @@
         }
       }
 
-      // ── NETWORK SYNC ──
       let syncNeeded = Math.abs(myPlayer.x - myPlayer.lastX) > 1 || Math.abs(myPlayer.y - myPlayer.lastY) > 1 || myPlayer.aimAngle !== myPlayer.lastAim || myPlayer.health !== myPlayer.lastHealth;
       if (isOnline && socket && socket.connected && Date.now() - lastSyncTime > 30 && syncNeeded) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health, weapon: myPlayer.weapon });
         lastSyncTime = Date.now(); myPlayer.lastX = myPlayer.x; myPlayer.lastY = myPlayer.y; myPlayer.lastAim = myPlayer.aimAngle; myPlayer.lastHealth = myPlayer.health;
       }
 
-      // ── POWERUP COLLECTION ──
       for (let i = powerups.length - 1; i >= 0; i--) {
         let p = powerups[i];
         if (myPlayer.x < p.x+p.w && myPlayer.x+myPlayer.width > p.x && myPlayer.y < p.y+p.h && myPlayer.y+myPlayer.height > p.y) {
@@ -596,12 +846,7 @@
         }
       }
 
-      // ── RELOAD ──
-      if (myPlayer.isReloading && Date.now() - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) {
-        myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false;
-      }
-
-      // ── FIRE ──
+      if (myPlayer.isReloading && Date.now() - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
       if (keys.fire && Date.now() - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) {
         if (myPlayer.ammo > 0 && !myPlayer.isReloading) {
           shoot(); myPlayer.ammo--; myPlayer.lastShotTime = Date.now();
@@ -609,7 +854,6 @@
         }
       }
 
-      // ── MY BULLETS vs NETWORK PLAYERS ──
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
@@ -618,17 +862,14 @@
             let np = networkPlayers[id];
             if (np.localHealth <= 0 || np.health <= 0) continue;
             if (b.x>np.x && b.x<np.x+40 && b.y>np.y && b.y<np.y+40) {
-              destroyed = true;
-              let dmg = WEAPONS[b.weapon || 'rifle'].damage;
+              destroyed = true; let dmg = WEAPONS[b.weapon || 'rifle'].damage;
               if (np.localHealth === undefined) np.localHealth = np.health;
               np.localHealth -= dmg;
-              // Damage number
               damageNumbers.push({ x: np.x + 20, y: np.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
               if (np.localHealth <= 0 && !np.countedKill) {
                 myPlayer.kills++; myPlayer.killStreak++; np.countedKill = true;
                 killFeed.push({ text: `☠ YOU → ${np.name}`, timer: 5.0, color: '#ff4757' });
-                spawnCoins(np.x + 20, np.y + 20);
-                checkStreak(myPlayer.killStreak);
+                spawnCoins(np.x + 20, np.y + 20); checkStreak(myPlayer.killStreak);
               }
               break;
             }
@@ -637,15 +878,13 @@
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) bullets.splice(i, 1);
       }
 
-      // ── NETWORK BULLETS vs ME ──
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
           destroyed = true;
-          if (myPlayer.invincibleTimer > Date.now()) {
-            // deflect, no damage
-          } else if (myPlayer.health > 0) {
+          if (myPlayer.invincibleTimer > Date.now()) { } 
+          else if (myPlayer.health > 0) {
             let dmg = 15;
             if (myPlayer.shield > 0) { let abs = Math.min(myPlayer.shield, dmg); myPlayer.shield -= abs; dmg -= abs; }
             if (dmg > 0) {
@@ -661,334 +900,140 @@
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) networkBullets.splice(i, 1);
       }
 
-      // ── UPDATE DAMAGE NUMBERS ──
-      for (let i = damageNumbers.length - 1; i >= 0; i--) {
-        let dn = damageNumbers[i]; dn.y += dn.vy; dn.vy *= 0.96; dn.opacity -= 0.025;
-        if (dn.opacity <= 0) damageNumbers.splice(i, 1);
-      }
-
-      // ── UPDATE COIN PARTICLES ──
-      for (let i = coinParticles.length - 1; i >= 0; i--) {
-        let c = coinParticles[i]; c.x += c.vx; c.y += c.vy; c.vy += 0.15; c.opacity -= 0.022;
-        if (c.opacity <= 0) coinParticles.splice(i, 1);
-      }
-
-      // ── UPDATE KILL FEED ──
-      for (let i = killFeed.length - 1; i >= 0; i--) {
-        killFeed[i].timer -= 0.014;
-        if (killFeed[i].timer <= 0) killFeed.splice(i, 1);
-      }
-
-      // ── STREAK + WEAPON ANNOUNCE DECAY ──
+      for (let i = damageNumbers.length - 1; i >= 0; i--) { let dn = damageNumbers[i]; dn.y += dn.vy; dn.vy *= 0.96; dn.opacity -= 0.025; if (dn.opacity <= 0) damageNumbers.splice(i, 1); }
+      for (let i = coinParticles.length - 1; i >= 0; i--) { let c = coinParticles[i]; c.x += c.vx; c.y += c.vy; c.vy += 0.15; c.opacity -= 0.022; if (c.opacity <= 0) coinParticles.splice(i, 1); }
+      for (let i = killFeed.length - 1; i >= 0; i--) { killFeed[i].timer -= 0.014; if (killFeed[i].timer <= 0) killFeed.splice(i, 1); }
       if (streakAnnounce.opacity > 0) streakAnnounce.opacity -= 0.016;
       if (weaponPickupAnnounce.opacity > 0) weaponPickupAnnounce.opacity -= 0.018;
-
-      // ── SCREEN SHAKE DECAY ──
       if (screenShake > 0) screenShake = Math.max(0, screenShake - 0.04);
 
-      // ── CAMERA ──
       camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width/2 - canvas.width/2, worldWidth - canvas.width));
       camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height/2 - canvas.height/2, worldHeight - canvas.height));
     }
 
-    // ══════════════════════════════════════════
-    //  DRAW HELPERS
-    // ══════════════════════════════════════════
-    function drawHUDBar(x, y, w, h, fillRatio, bgColor, fillColor, label, labelColor) {
+    function drawHUDBar(x, y, w, h, fillRatio, bgColor, fillColor, label, labelColor, fSize) {
       ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x-2, y-2, w+4, h+4);
       ctx.fillStyle = bgColor; ctx.fillRect(x, y, w, h);
       ctx.fillStyle = fillColor; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, fillRatio)), h);
-      ctx.fillStyle = labelColor || 'white'; ctx.font = 'bold 13px "Share Tech Mono", monospace';
-      ctx.textAlign = 'left'; ctx.fillText(label, x+6, y + h - 5);
+      ctx.fillStyle = labelColor || 'white'; ctx.font = `bold ${fSize}px "Share Tech Mono", monospace`;
+      ctx.textAlign = 'left'; ctx.fillText(label, x+6, y + h - (h*0.25));
     }
+    
     function drawJoystick(joy, color) {
-      if (!joy.active) return;
-      ctx.save(); ctx.globalAlpha = 0.4;
+      if (!joy.active) return; ctx.save(); ctx.globalAlpha = 0.4;
       ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(joy.startX, joy.startY, 55, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(joy.startX+joy.dx, joy.startY+joy.dy, 28, 0, Math.PI*2); ctx.fill();
-      ctx.restore();
+      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(joy.startX+joy.dx, joy.startY+joy.dy, 28, 0, Math.PI*2); ctx.fill(); ctx.restore();
     }
 
-    // ══════════════════════════════════════════
-    //  DRAW
-    // ══════════════════════════════════════════
     function draw() {
-      // Sky
       ctx.fillStyle = `rgb(${Math.round(currentSky[0])},${Math.round(currentSky[1])},${Math.round(currentSky[2])})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      // Biome particles
       ctx.fillStyle = targetBiome.pColor; for (let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
 
-      // Screen shake
       let shakeX = 0, shakeY = 0;
       if (screenShake > 0) { shakeX = (Math.random()-0.5)*screenShake*14; shakeY = (Math.random()-0.5)*screenShake*14; }
-
-      ctx.save();
-      ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
+      ctx.save(); ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
       const viewLeft = camera.x - 200; const viewRight = camera.x + canvas.width + 200;
 
-      // ── POWERUPS ──
       let t = Date.now();
       for (let p of powerups) {
         if (p.x > viewRight || p.x+p.w < viewLeft) continue;
         let pulse = 0.75 + Math.sin(t * 0.005 + p.x * 0.01) * 0.25;
         ctx.save(); ctx.globalAlpha = pulse;
-        if (p.type==='health') {
-          ctx.fillStyle='#2ecc71'; ctx.fillRect(p.x,p.y,p.w,p.h);
-          ctx.fillStyle='white'; ctx.fillRect(p.x+10,p.y+4,10,22); ctx.fillRect(p.x+4,p.y+10,22,10);
-        } else if (p.type==='jetpack') {
-          ctx.fillStyle='#00cec9'; ctx.fillRect(p.x,p.y,p.w,p.h);
-          ctx.fillStyle='white'; ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.fillText('INF',p.x+15,p.y+20);
-        } else if (p.type==='shield') {
-          ctx.fillStyle='#74b9ff'; ctx.fillRect(p.x,p.y,p.w,p.h);
-          ctx.fillStyle='white'; ctx.font='18px Arial'; ctx.textAlign='center'; ctx.fillText('🛡',p.x+15,p.y+23);
-        } else if (p.type==='speed') {
-          ctx.fillStyle='#fdcb6e'; ctx.fillRect(p.x,p.y,p.w,p.h);
-          ctx.fillStyle='#2d3436'; ctx.font='18px Arial'; ctx.textAlign='center'; ctx.fillText('⚡',p.x+15,p.y+23);
-        } else if (p.type==='shotgun' || p.type==='sniper') {
-          const wc = WEAPONS[p.type];
-          ctx.fillStyle = wc.crateColor; ctx.fillRect(p.x,p.y,p.w,p.h);
-          ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5; ctx.strokeRect(p.x,p.y,p.w,p.h);
-          ctx.fillStyle='white'; ctx.font='bold 8px "Share Tech Mono",monospace'; ctx.textAlign='center'; ctx.fillText(wc.name,p.x+15,p.y+19);
-        }
+        if (p.type==='health') { ctx.fillStyle='#2ecc71'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.fillRect(p.x+10,p.y+4,10,22); ctx.fillRect(p.x+4,p.y+10,22,10); }
+        else if (p.type==='jetpack') { ctx.fillStyle='#00cec9'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.fillText('INF',p.x+15,p.y+20); }
+        else if (p.type==='shield') { ctx.fillStyle='#74b9ff'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.font='18px Arial'; ctx.textAlign='center'; ctx.fillText('🛡',p.x+15,p.y+23); }
+        else if (p.type==='speed') { ctx.fillStyle='#fdcb6e'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='#2d3436'; ctx.font='18px Arial'; ctx.textAlign='center'; ctx.fillText('⚡',p.x+15,p.y+23); }
+        else if (p.type==='shotgun' || p.type==='sniper') { const wc = WEAPONS[p.type]; ctx.fillStyle = wc.crateColor; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5; ctx.strokeRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.font='bold 8px "Share Tech Mono",monospace'; ctx.textAlign='center'; ctx.fillText(wc.name,p.x+15,p.y+19); }
         ctx.restore();
-        // Glow ring
-        ctx.save(); ctx.globalAlpha = 0.18 + Math.sin(t*0.008)*0.1;
-        ctx.strokeStyle = p.type==='shotgun'?'#e67e22': p.type==='sniper'?'#a29bfe': p.type==='shield'?'#74b9ff': p.type==='speed'?'#fdcb6e':'#2ecc71';
-        ctx.lineWidth=3; ctx.beginPath(); ctx.rect(p.x-4,p.y-4,p.w+8,p.h+8); ctx.stroke();
-        ctx.restore();
+        ctx.save(); ctx.globalAlpha = 0.18 + Math.sin(t*0.008)*0.1; ctx.strokeStyle = p.type==='shotgun'?'#e67e22': p.type==='sniper'?'#a29bfe': p.type==='shield'?'#74b9ff': p.type==='speed'?'#fdcb6e':'#2ecc71'; ctx.lineWidth=3; ctx.beginPath(); ctx.rect(p.x-4,p.y-4,p.w+8,p.h+8); ctx.stroke(); ctx.restore();
       }
 
-      // ── MAP ──
       for (let obj of map) {
         if (obj.x > viewRight || obj.x+obj.w < viewLeft) continue;
-        if (obj.type==='cover') {
-          ctx.fillStyle='#2c3e50'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h);
-          ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h);
-          // Detail lines on cover
-          ctx.fillStyle='rgba(255,255,255,0.04)';
-          for (let lx = obj.x+8; lx < obj.x+obj.w-4; lx+=12) ctx.fillRect(lx,obj.y+4,2,obj.h-8);
-        } else {
+        if (obj.type==='cover') { ctx.fillStyle='#2c3e50'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); ctx.fillStyle='rgba(255,255,255,0.04)'; for (let lx = obj.x+8; lx < obj.x+obj.w-4; lx+=12) ctx.fillRect(lx,obj.y+4,2,obj.h-8); }
+        else {
           let tc = '#55efc4'; for (let b of biomes) { if(obj.x<b.endX){tc=b.ground;break;} }
-          ctx.fillStyle = '#34495e'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h);
-          ctx.fillStyle = tc; ctx.fillRect(obj.x,obj.y,obj.w,8);
-          // Moving platform pulse
-          if (obj.moving) {
-            ctx.save();
-            ctx.globalAlpha = 0.25 + Math.sin(t * 0.006 + obj.movePhase) * 0.15;
-            ctx.strokeStyle = '#55efc4'; ctx.lineWidth = 1.5;
-            ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
-            ctx.restore();
-          }
-          // Tier indicator (subtle)
+          ctx.fillStyle = '#34495e'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.fillStyle = tc; ctx.fillRect(obj.x,obj.y,obj.w,8);
+          if (obj.moving) { ctx.save(); ctx.globalAlpha = 0.25 + Math.sin(t * 0.006 + obj.movePhase) * 0.15; ctx.strokeStyle = '#55efc4'; ctx.lineWidth = 1.5; ctx.strokeRect(obj.x, obj.y, obj.w, obj.h); ctx.restore(); }
           if (obj.tier >= 2) { ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(obj.x,obj.y+8,obj.w,obj.h-8); }
         }
       }
 
-      // ── NETWORK PLAYERS ──
       for (let id in networkPlayers) {
         let np = networkPlayers[id]; if (np.health<=0) continue; if (np.x>viewRight || np.x+40<viewLeft) continue;
-        let npGunColor = np.weapon==='shotgun'?'#e67e22': np.weapon==='sniper'?'#a29bfe':'#bdc3c7';
-        let npGunLen = np.weapon==='sniper'?50: np.weapon==='shotgun'?28:35;
+        let npGunColor = np.weapon==='shotgun'?'#e67e22': np.weapon==='sniper'?'#a29bfe':'#bdc3c7'; let npGunLen = np.weapon==='sniper'?50: np.weapon==='shotgun'?28:35;
         ctx.save(); ctx.translate(np.x+20,np.y+20); ctx.rotate(np.aimAngle); ctx.fillStyle=npGunColor; ctx.fillRect(0,-4,npGunLen,8); ctx.restore();
-        ctx.fillStyle=np.color; ctx.fillRect(np.x,np.y,40,40);
-        ctx.fillStyle='red'; ctx.fillRect(np.x,np.y-12,42,5);
-        ctx.fillStyle='#2ecc71'; ctx.fillRect(np.x,np.y-12,42*(np.health/100),5);
+        ctx.fillStyle=np.color; ctx.fillRect(np.x,np.y,40,40); ctx.fillStyle='red'; ctx.fillRect(np.x,np.y-12,42,5); ctx.fillStyle='#2ecc71'; ctx.fillRect(np.x,np.y-12,42*(np.health/100),5);
         ctx.fillStyle='white'; ctx.font='bold 12px "Rajdhani",sans-serif'; ctx.textAlign='center'; ctx.fillText(np.name,np.x+20,np.y-16);
-        // Shield glow
         if (np.shield > 0) { ctx.save(); ctx.globalAlpha=0.4; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(np.x-3,np.y-3,46,46); ctx.restore(); }
       }
 
-      // ── MY PLAYER ──
-      const cx = myPlayer.x + myPlayer.width/2, cy = myPlayer.y + myPlayer.height/2;
-      const wDef = WEAPONS[myPlayer.weapon];
-      // Invincibility flash
+      const cx = myPlayer.x + myPlayer.width/2, cy = myPlayer.y + myPlayer.height/2; const wDef = WEAPONS[myPlayer.weapon];
       let invincible = myPlayer.invincibleTimer > Date.now();
-      ctx.save();
-      if (invincible && Math.floor(t / 80) % 2 === 0) ctx.globalAlpha = 0.35;
-      // Gun barrel
-      ctx.save(); ctx.translate(cx,cy); ctx.rotate(myPlayer.aimAngle);
-      ctx.fillStyle = wDef.barrelColor; ctx.fillRect(0, -(wDef.barrelH/2), wDef.barrelLen, wDef.barrelH);
+      ctx.save(); if (invincible && Math.floor(t / 80) % 2 === 0) ctx.globalAlpha = 0.35;
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(myPlayer.aimAngle); ctx.fillStyle = wDef.barrelColor; ctx.fillRect(0, -(wDef.barrelH/2), wDef.barrelLen, wDef.barrelH); ctx.restore();
+      ctx.fillStyle = myPlayer.color; ctx.fillRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.strokeRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height);
       ctx.restore();
-      ctx.fillStyle = myPlayer.color; ctx.fillRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height);
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.strokeRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height);
-      ctx.restore();
-      // Shield glow on self
-      if (myPlayer.shield > 0) {
-        ctx.save(); ctx.globalAlpha = 0.5 + Math.sin(t*0.01)*0.2;
-        ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(myPlayer.x-3,myPlayer.y-3,46,46);
-        ctx.restore();
-      }
-      // Speed boost trail
-      if (myPlayer.speedBoostTimer > Date.now() && (keys.a || keys.d)) {
-        ctx.save(); ctx.globalAlpha=0.3; ctx.fillStyle='#fdcb6e';
-        ctx.fillRect(myPlayer.x - (keys.d?10:0), myPlayer.y+5, 6, myPlayer.height-10);
-        ctx.fillRect(myPlayer.x + myPlayer.width + (keys.a?4:0), myPlayer.y+5, 6, myPlayer.height-10);
-        ctx.restore();
-      }
+      if (myPlayer.shield > 0) { ctx.save(); ctx.globalAlpha = 0.5 + Math.sin(t*0.01)*0.2; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(myPlayer.x-3,myPlayer.y-3,46,46); ctx.restore(); }
+      if (myPlayer.speedBoostTimer > Date.now() && (keys.a || keys.d)) { ctx.save(); ctx.globalAlpha=0.3; ctx.fillStyle='#fdcb6e'; ctx.fillRect(myPlayer.x - (keys.d?10:0), myPlayer.y+5, 6, myPlayer.height-10); ctx.fillRect(myPlayer.x + myPlayer.width + (keys.a?4:0), myPlayer.y+5, 6, myPlayer.height-10); ctx.restore(); }
       ctx.fillStyle='white'; ctx.font='bold 13px "Rajdhani",sans-serif'; ctx.textAlign='center'; ctx.fillText(myPlayer.name, cx, myPlayer.y-12);
 
-      // Reload bar
-      if (myPlayer.isReloading) {
-        let rp = (t - myPlayer.reloadStartTime) / WEAPONS[myPlayer.weapon].reload;
-        ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(myPlayer.x-12,myPlayer.y-30,66,8);
-        ctx.fillStyle = wDef.barrelColor; ctx.fillRect(myPlayer.x-12,myPlayer.y-30,66*rp,8);
-      }
+      if (myPlayer.isReloading) { let rp = (t - myPlayer.reloadStartTime) / WEAPONS[myPlayer.weapon].reload; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(myPlayer.x-12,myPlayer.y-30,66,8); ctx.fillStyle = wDef.barrelColor; ctx.fillRect(myPlayer.x-12,myPlayer.y-30,66*rp,8); }
+      bullets.forEach(b => { ctx.fillStyle = b.color || '#f1c40f'; if (b.weapon === 'sniper') { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx)); ctx.fillStyle = '#a29bfe'; ctx.fillRect(-14, -2, 28, 4); ctx.restore(); } else { ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1; ctx.stroke(); } });
+      ctx.fillStyle='#e74c3c'; networkBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x,b.y,b.radius||4,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke(); });
 
-      // ── BULLETS ──
-      bullets.forEach(b => {
-        ctx.fillStyle = b.color || '#f1c40f';
-        if (b.weapon === 'sniper') {
-          ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx));
-          ctx.fillStyle = '#a29bfe'; ctx.fillRect(-14, -2, 28, 4); ctx.restore();
-        } else {
-          ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fill();
-          ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1; ctx.stroke();
-        }
-      });
-      ctx.fillStyle='#e74c3c';
-      networkBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x,b.y,b.radius||4,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke(); });
+      for (let dn of damageNumbers) { ctx.save(); ctx.globalAlpha = Math.min(1, dn.opacity); ctx.fillStyle = dn.color; ctx.font = `bold ${dn.size || 16}px "Rajdhani", sans-serif`; ctx.textAlign = 'center'; ctx.shadowColor = dn.color; ctx.shadowBlur = 8; ctx.fillText(dn.value, dn.x, dn.y); ctx.restore(); }
+      for (let c of coinParticles) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, c.opacity)); ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore(); }
+      ctx.restore(); 
 
-      // ── DAMAGE NUMBERS (world space) ──
-      for (let dn of damageNumbers) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, dn.opacity);
-        ctx.fillStyle = dn.color;
-        ctx.font = `bold ${dn.size || 16}px "Rajdhani", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.shadowColor = dn.color; ctx.shadowBlur = 8;
-        ctx.fillText(dn.value, dn.x, dn.y);
-        ctx.restore();
-      }
+      // ── HUD (RESPONSIVE FOR MOBILE) ──
+      const isMob = canvas.width < 768;
+      const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22;
+      const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8);
+      const y1 = isMob ? 10 : 22, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
 
-      // ── COIN PARTICLES (world space) ──
-      for (let c of coinParticles) {
-        ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, c.opacity));
-        ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        ctx.restore();
-      }
-
-      ctx.restore(); // end camera transform
-
-      // ══════════════════════════════════════════
-      //  HUD (screen space, no shake)
-      // ══════════════════════════════════════════
-      const HX = 22, HW = 200, HH = 22;
-      drawHUDBar(HX, 22,  HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white');
-      if (myPlayer.shield > 0) { drawHUDBar(HX, 52, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white'); }
-      const jY = myPlayer.shield > 0 ? 82 : 52;
+      drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
+      if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
+      const jY = myPlayer.shield > 0 ? y3 : y2; const aY = jY + gap, kY = aY + gap, wY = kY + gap;
       let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > Date.now();
-      drawHUDBar(HX, jY, HW, HH, hasUnlimitedJetpack ? 1 : myPlayer.fuel/myPlayer.maxFuel, '#002020', hasUnlimitedJetpack?'#00cec9':'#3498db', hasUnlimitedJetpack?'JETPACK ∞':'JETPACK', 'white');
-      const ammoY = jY + 30, killsY = ammoY + 30, weapY = killsY + 30;
-      ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, ammoY, HW+4, HH+4);
-      ctx.fillStyle=(myPlayer.ammo===0)?'rgba(80,0,0,0.8)':'rgba(255,255,255,0.06)'; ctx.fillRect(HX, ammoY+2, HW, HH);
-      ctx.fillStyle=(myPlayer.ammo===0)?'#e74c3c':'white'; ctx.font='bold 13px "Share Tech Mono",monospace'; ctx.textAlign='left';
-      ctx.fillText(myPlayer.isReloading ? 'RELOADING...' : `AMMO  ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, HX+6, ammoY+HH-3);
-      ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, killsY, HW+4, HH+4);
-      ctx.fillStyle='rgba(241,196,15,0.1)'; ctx.fillRect(HX, killsY+2, HW, HH);
-      ctx.fillStyle='#f1c40f'; ctx.font='bold 14px "Share Tech Mono",monospace'; ctx.textAlign='left';
-      ctx.fillText(`KILLS  ${myPlayer.kills}  STREAK ${myPlayer.killStreak}`, HX+6, killsY+HH-3);
-      // Weapon badge
+      drawHUDBar(HX, jY, HW, HH, hasUnlimitedJetpack ? 1 : myPlayer.fuel/myPlayer.maxFuel, '#002020', hasUnlimitedJetpack?'#00cec9':'#3498db', hasUnlimitedJetpack?'JETPACK ∞':'JETPACK', 'white', fSize);
+      
+      ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, aY, HW+4, HH+4); ctx.fillStyle=(myPlayer.ammo===0)?'rgba(80,0,0,0.8)':'rgba(255,255,255,0.06)'; ctx.fillRect(HX, aY+2, HW, HH); ctx.fillStyle=(myPlayer.ammo===0)?'#e74c3c':'white'; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(myPlayer.isReloading ? 'RELOADING...' : `AMMO  ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, HX+6, aY+HH-3);
+      ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, kY, HW+4, HH+4); ctx.fillStyle='rgba(241,196,15,0.1)'; ctx.fillRect(HX, kY+2, HW, HH); ctx.fillStyle='#f1c40f'; ctx.font=`bold ${fSize+1}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`KILLS  ${myPlayer.kills}  STREAK ${myPlayer.killStreak}`, HX+6, kY+HH-3);
+      
       const wCol = wDef.crateColor || '#bdc3c7';
-      ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, weapY, HW+4, HH+4);
-      ctx.fillStyle = wCol + '22'; ctx.fillRect(HX, weapY+2, HW, HH);
-      ctx.strokeStyle = wCol; ctx.lineWidth=1; ctx.strokeRect(HX, weapY+2, HW, HH);
-      ctx.fillStyle = wCol; ctx.font='bold 13px "Share Tech Mono",monospace'; ctx.textAlign='left';
-      ctx.fillText(`⚙ ${wDef.name}`, HX+6, weapY+HH-3);
-      // Speed boost indicator
-      if (myPlayer.speedBoostTimer > Date.now()) {
-        let remaining = Math.ceil((myPlayer.speedBoostTimer - Date.now()) / 1000);
-        ctx.fillStyle='#fdcb6e'; ctx.font='bold 11px "Share Tech Mono",monospace'; ctx.textAlign='left';
-        ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, weapY+HH+18);
-      }
-      // Invincible flash text
-      if (invincible) {
-        ctx.save(); ctx.globalAlpha = 0.6 + Math.sin(t * 0.02) * 0.4;
-        ctx.fillStyle = '#55efc4'; ctx.font = 'bold 13px "Share Tech Mono",monospace'; ctx.textAlign='left';
-        ctx.fillText('★ INVINCIBLE', HX+6, weapY+HH+36);
-        ctx.restore();
-      }
+      ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, wY, HW+4, HH+4); ctx.fillStyle = wCol + '22'; ctx.fillRect(HX, wY+2, HW, HH); ctx.strokeStyle = wCol; ctx.lineWidth=1; ctx.strokeRect(HX, wY+2, HW, HH); ctx.fillStyle = wCol; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚙ ${wDef.name}`, HX+6, wY+HH-3);
+      if (myPlayer.speedBoostTimer > Date.now()) { let remaining = Math.ceil((myPlayer.speedBoostTimer - Date.now()) / 1000); ctx.fillStyle='#fdcb6e'; ctx.font=`bold ${fSize-2}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, wY+HH+(isMob?14:18)); }
+      if (invincible) { ctx.save(); ctx.globalAlpha = 0.6 + Math.sin(t * 0.02) * 0.4; ctx.fillStyle = '#55efc4'; ctx.font = `bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText('★ INVINCIBLE', HX+6, wY+HH+(isMob?28:36)); ctx.restore(); }
 
-      // ── BIOME POPUP ──
-      if (biomePopupOpacity > 0) {
-        ctx.save(); ctx.globalAlpha = Math.min(biomePopupOpacity, 1.0); ctx.textAlign='center';
-        ctx.fillStyle='white'; ctx.font='bold 52px "Rajdhani",sans-serif'; ctx.fillText(biomePopupName, canvas.width/2, canvas.height*0.25);
-        ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.fillRect(canvas.width/2-180, canvas.height*0.25+14, 360, 3);
-        ctx.restore();
-      }
+      if (biomePopupOpacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(biomePopupOpacity, 1.0); ctx.textAlign='center'; ctx.fillStyle='white'; ctx.font=`bold ${isMob?32:52}px "Rajdhani",sans-serif`; ctx.fillText(biomePopupName, canvas.width/2, canvas.height*0.25); ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.fillRect(canvas.width/2 - (isMob?120:180), canvas.height*0.25+14, isMob?240:360, 3); ctx.restore(); }
+      if (streakAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, streakAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?28:44}px "Rajdhani",sans-serif`; ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 30; ctx.fillStyle = '#f1c40f'; ctx.fillText(streakAnnounce.text, canvas.width/2, canvas.height*0.4); ctx.restore(); }
+      if (weaponPickupAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, weaponPickupAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?24:36}px "Rajdhani",sans-serif`; ctx.fillStyle = weaponPickupAnnounce.color; ctx.shadowColor = weaponPickupAnnounce.color; ctx.shadowBlur = 20; ctx.fillText(weaponPickupAnnounce.text, canvas.width/2, canvas.height*0.55); ctx.restore(); }
 
-      // ── STREAK ANNOUNCE (center screen) ──
-      if (streakAnnounce.opacity > 0) {
-        ctx.save();
-        let alpha = Math.min(1, streakAnnounce.opacity);
-        ctx.globalAlpha = alpha;
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 44px "Rajdhani",sans-serif';
-        ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 30;
-        ctx.fillStyle = '#f1c40f'; ctx.fillText(streakAnnounce.text, canvas.width/2, canvas.height*0.4);
-        ctx.shadowBlur = 0;
-        ctx.restore();
-      }
+      // ── MINIMAP (Moved to Top Right for Mobile) ──
+      const mmW = isMob ? 120 : 180, mmH = isMob ? 32 : 48;
+      const mmX = canvas.width - mmW - (isMob ? 10 : 22); const mmY = isMob ? 10 : 22;
+      const mm = { x: mmX, y: mmY, w: mmW, h: mmH };
+      ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(mm.x-2, mm.y-2, mm.w+4, mm.h+4); ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(mm.x, mm.y, mm.w, mm.h);
+      const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      for (let obj of map) { if (obj.type==='plat'||obj.type==='floor') ctx.fillRect(mm.x+obj.x*sx, mm.y+obj.y*sy, Math.max(1.5,obj.w*sx), 1); }
+      for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health<=0) continue; ctx.fillStyle = np.color; ctx.fillRect(mm.x + np.x*sx - 2, mm.y + np.y*sy - 2, 4, 4); }
+      ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
+      ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
 
-      // ── WEAPON PICKUP ANNOUNCE ──
-      if (weaponPickupAnnounce.opacity > 0) {
-        ctx.save();
-        ctx.globalAlpha = Math.min(1, weaponPickupAnnounce.opacity);
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 36px "Rajdhani",sans-serif';
-        ctx.fillStyle = weaponPickupAnnounce.color;
-        ctx.shadowColor = weaponPickupAnnounce.color; ctx.shadowBlur = 20;
-        ctx.fillText(weaponPickupAnnounce.text, canvas.width/2, canvas.height*0.55);
-        ctx.shadowBlur = 0;
-        ctx.restore();
-      }
-
-      // ── KILL FEED (top right) ──
-      ctx.save();
-      ctx.font = '13px "Share Tech Mono",monospace';
-      ctx.textAlign = 'right';
-      let kfY = 28;
+      // ── KILL FEED ──
+      ctx.save(); ctx.font = `${isMob?10:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right';
+      let kfY = mm.y + mm.h + 20; 
       for (let kf of killFeed) {
-        let alpha = Math.min(1, kf.timer);
-        ctx.globalAlpha = alpha;
-        let w = ctx.measureText(kf.text).width + 20;
+        ctx.globalAlpha = Math.min(1, kf.timer); let w = ctx.measureText(kf.text).width + 20;
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width - w - 12, kfY - 16, w, 20);
-        ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 12, kfY);
-        kfY += 24;
+        ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 12, kfY); kfY += 24;
       }
-      ctx.globalAlpha = 1;
       ctx.restore();
 
-      // ── MINI-MAP RADAR ──
-      const mm = { x: canvas.width - 192, y: canvas.height - 62, w: 180, h: 48 };
-      ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(mm.x-2, mm.y-2, mm.w+4, mm.h+4);
-      ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(mm.x, mm.y, mm.w, mm.h);
-      const sx = mm.w / worldWidth, sy = mm.h / worldHeight;
-      // Platforms on minimap
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
-      for (let obj of map) { if (obj.type==='plat'||obj.type==='floor') ctx.fillRect(mm.x+obj.x*sx, mm.y+obj.y*sy, Math.max(1.5,obj.w*sx), 1); }
-      // Network players
-      for (let id in networkPlayers) {
-        let np = networkPlayers[id]; if (np.health<=0) continue;
-        ctx.fillStyle = np.color;
-        ctx.fillRect(mm.x + np.x*sx - 2, mm.y + np.y*sy - 2, 4, 4);
-      }
-      // Self
-      ctx.fillStyle = 'white';
-      ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
-      // Border + label
-      ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h);
-      ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left';
-      ctx.fillText('RADAR', mm.x, mm.y - 4);
-
-      // ── JOYSTICKS ──
-      drawJoystick(joyLeft, '#3498db');
-      drawJoystick(joyRight, '#e74c3c');
+      drawJoystick(joyLeft, '#3498db'); drawJoystick(joyRight, '#e74c3c');
     }
 
-    // ══════════════════════════════════════════
-    //  GAME LOOP
-    // ══════════════════════════════════════════
     function gameLoop() { if (isPlaying) { update(); draw(); requestAnimationFrame(gameLoop); } }
   </script>
 </body>
