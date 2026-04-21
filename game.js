@@ -1,0 +1,797 @@
+// ══════════════════════════════════════════
+//  TOUCH DETECTION
+// ══════════════════════════════════════════
+let isTouchMode = false;
+window.addEventListener('touchstart', () => { isTouchMode = true; }, { passive: true, once: true });
+
+// ══════════════════════════════════════════
+//  WEAPONS SYSTEM (WITH ZOOM)
+// ══════════════════════════════════════════
+const WEAPONS = {
+  rifle:   { damage: 15, fireRate: 150,  ammo: 15, speed: 16, spread: 0,    pellets: 1, reload: 1500, bulletColor: '#f1c40f', barrelColor: '#bdc3c7', barrelLen: 38, barrelH: 10, name: 'RIFLE',   crateColor: null,      zoom: 1.0 },
+  shotgun: { damage: 8,  fireRate: 700,  ammo: 8,  speed: 13, spread: 0.22, pellets: 5, reload: 2000, bulletColor: '#e67e22', barrelColor: '#e67e22', barrelLen: 30, barrelH: 14, name: 'SHOTGUN', crateColor: '#e67e22', zoom: 0.85 },
+  sniper:  { damage: 65, fireRate: 1200, ammo: 5,  speed: 26, spread: 0,    pellets: 1, reload: 2500, bulletColor: '#a29bfe', barrelColor: '#a29bfe', barrelLen: 54, barrelH: 6,  name: 'SNIPER',  crateColor: '#a29bfe', zoom: 1.4 },
+};
+
+// ══════════════════════════════════════════
+//  CORE REFS
+// ══════════════════════════════════════════
+const menus = { login: document.getElementById('loginScreen'), main: document.getElementById('mainMenu'), settings: document.getElementById('settingsMenu'), death: document.getElementById('deathScreen') };
+const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
+const leaderboardPanel = document.getElementById('leaderboardPanel');
+const authBtn = document.getElementById('authBtn'); const playBtn = document.getElementById('playBtn');
+const settingsBtn = document.getElementById('settingsBtn'); const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const respawnBtn = document.getElementById('respawnBtn'); const backMenuBtn = document.getElementById('backMenuBtn');
+const colorBtns = document.querySelectorAll('.color-btn');
+
+// ══════════════════════════════════════════
+//  NETWORK & CAMERA
+// ══════════════════════════════════════════
+let socket = null; let networkPlayers = {}; let networkBullets = []; let isOnline = false; let lastSyncTime = 0;
+const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
+let map = []; let powerups = [];
+
+// Smooth camera zoom
+let currentZoom = 1.0;
+
+// ══════════════════════════════════════════
+//  INPUT & POINTER LOCK
+// ══════════════════════════════════════════
+const joyLeft = { active: false, startX: 0, startY: 0, dx: 0, dy: 0, touchId: null };
+const joyRight = { active: false, startX: 0, startY: 0, dx: 0, dy: 0, touchId: null };
+let mouseX = window.innerWidth / 2; let mouseY = window.innerHeight / 2;
+
+// POINTER LOCK ACTIVATION (Only when playing on PC)
+canvas.addEventListener('click', () => {
+  if (isPlaying && !isTouchMode && document.pointerLockElement !== canvas) {
+    canvas.requestPointerLock();
+  }
+});
+
+// ══════════════════════════════════════════
+//  BIOMES
+// ══════════════════════════════════════════
+const biomes = [
+  { name: "GREENLANDS",    endX: 2000,  sky: [135,206,235], ground: "#55efc4", pType: "pollen", pColor: "rgba(255,255,255,0.6)" },
+  { name: "SAVANNA",       endX: 4000,  sky: [230,126,34],  ground: "#d35400", pType: "dust",   pColor: "rgba(211,84,0,0.5)" },
+  { name: "ASH WASTELAND", endX: 6000,  sky: [44,62,80],    ground: "#7f8c8d", pType: "ash",    pColor: "rgba(30,30,30,0.8)" },
+  { name: "FROST PEAKS",   endX: 8000,  sky: [176,224,230], ground: "#ecf0f1", pType: "snow",   pColor: "rgba(255,255,255,0.9)" },
+  { name: "THE VOID",      endX: 10000, sky: [20,0,35],     ground: "#8e44ad", pType: "spark",  pColor: "rgba(155,89,182,0.8)" }
+];
+let targetBiome = biomes[0]; let currentSky = [...targetBiome.sky]; let biomePopupName = targetBiome.name; let biomePopupOpacity = 0;
+let particles = []; const maxParticles = 60;
+
+// ══════════════════════════════════════════
+//  PLAYER
+// ══════════════════════════════════════════
+const myPlayer = {
+  x: 100, y: worldHeight - 200, width: 40, height: 40, dx: 0, dy: 0, speed: 6,
+  jetpackForce: 0.9, gravity: 0.35, aimAngle: 0,
+  health: 100, maxHealth: 100, fuel: 250, maxFuel: 250,
+  ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, reloadDuration: 1500, lastShotTime: 0,
+  name: "Unknown", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0,
+  lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100,
+  weapon: 'rifle', weaponExpire: 0, shield: 0, maxShield: 50, speedBoostTimer: 0,
+  killStreak: 0, invincibleTimer: 0
+};
+let isPlaying = false; let bullets = [];
+const keys = { w: false, a: false, d: false, fire: false };
+
+// ══════════════════════════════════════════
+//  NEW SYSTEMS
+// ══════════════════════════════════════════
+let damageNumbers = [];
+let screenShake = 0;
+let killFeed = [];
+let coinParticles = [];
+let streakAnnounce = { text: '', opacity: 0 };
+let weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
+
+function returnToLogin() {
+  document.exitPointerLock();
+  document.getElementById('kickedOverlay').classList.remove('visible');
+  canvas.style.display = 'none';
+  isPlaying = false;
+  Object.values(menus).forEach(m => m.style.display = 'none');
+  leaderboardPanel.style.display = 'none';
+  const status = document.getElementById('loginStatus');
+  status.innerText = 'Server Online. Please Authenticate.';
+  status.style.color = '#2ecc71';
+  authBtn.style.display = 'block';
+  menus.login.style.display = 'flex';
+}
+
+function initNetwork() {
+  const myRenderURL = "https://baylerbay-militia-server.onrender.com";
+  const loginStatus = document.getElementById('loginStatus');
+  if (typeof io === 'undefined') { loginStatus.innerText = "Error: Blocked by browser."; loginStatus.style.color = "#e74c3c"; return; }
+  if (socket) return;
+  loginStatus.innerText = "Waking up server... (Can take 50 seconds)";
+  loginStatus.style.color = "#f39c12";
+  try {
+    socket = io(myRenderURL, { reconnectionAttempts: 12, reconnectionDelay: 5000 });
+
+    socket.on('connect', () => {
+      isOnline = true;
+      loginStatus.innerText = "Server Online. Please Authenticate.";
+      loginStatus.style.color = "#2ecc71";
+      authBtn.style.display = "block";
+    });
+
+    socket.on('newPlayer', (playerInfo) => {
+      networkPlayers[playerInfo.id] = playerInfo.player;
+      networkPlayers[playerInfo.id].targetX = playerInfo.player.x;
+      networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
+      networkPlayers[playerInfo.id].localHealth = playerInfo.player.health;
+      networkPlayers[playerInfo.id].countedKill = false;
+    });
+
+    socket.on('playerMoved', (playerInfo) => {
+      if (networkPlayers[playerInfo.id]) {
+        let np = networkPlayers[playerInfo.id];
+        np.targetX = playerInfo.player.x;
+        np.targetY = playerInfo.player.y;
+        np.aimAngle = playerInfo.player.aimAngle;
+        np.health = playerInfo.player.health;
+        np.weapon = playerInfo.player.weapon;
+
+        if (playerInfo.player.health === 100) {
+            np.localHealth = 100;
+            np.countedKill = false; 
+        } else if (np.localHealth === undefined || playerInfo.player.health < np.localHealth) {
+            np.localHealth = playerInfo.player.health;
+        }
+      }
+    });
+
+    socket.on('networkBullet', (b) => { networkBullets.push(b); });
+    socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
+    socket.on('reconnect_failed', () => {
+      loginStatus.innerText = "Server unreachable.";
+      loginStatus.style.color = "#e74c3c";
+      isOnline = false;
+    });
+
+    socket.on('kicked', (data) => {
+      isPlaying = false;
+      document.exitPointerLock();
+      const msg = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.';
+      document.getElementById('kickedMsg').innerText = msg;
+      document.getElementById('kickedOverlay').classList.add('visible');
+      canvas.style.display = 'none';
+    });
+
+    socket.on('leaderboardUpdate', (topPlayers) => {
+      let html = '';
+      topPlayers.forEach((p, index) => {
+        const trophy = index === 0 ? '👑' : (index + 1) + '.';
+        html += `<tr>
+          <td class="lb-rank">${trophy}</td>
+          <td>${p.name}</td>
+          <td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak}</td>
+          <td style="text-align:right;">${p.totalKills}</td>
+        </tr>`;
+      });
+      if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>';
+      document.getElementById('leaderboardBody').innerHTML = html;
+    });
+
+  } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
+}
+
+initNetwork();
+
+authBtn.addEventListener('click', () => {
+  const name = document.getElementById('loginName').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+  const status = document.getElementById('loginStatus');
+  if (!name || !pin) { status.innerText = "Callsign and PIN required."; status.style.color = "#e74c3c"; return; }
+  status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f";
+  socket.emit('login', { name, pin }, (res) => {
+    if (res.success) {
+      myPlayer.name = name;
+      networkPlayers = res.currentPlayers;
+      delete networkPlayers[socket.id];
+      
+      for (let id in networkPlayers) {
+        networkPlayers[id].targetX = networkPlayers[id].x;
+        networkPlayers[id].targetY = networkPlayers[id].y;
+        networkPlayers[id].localHealth = networkPlayers[id].health;
+        networkPlayers[id].countedKill = false;
+      }
+      
+      menus.login.style.display = 'none';
+      menus.main.style.display = 'flex';
+      leaderboardPanel.style.display = 'block';
+    } else {
+      status.innerText = res.message;
+      status.style.color = "#e74c3c";
+    }
+  });
+});
+
+settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
+colorBtns.forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    colorBtns.forEach(b => b.classList.remove('selected'));
+    e.target.classList.add('selected');
+    myPlayer.color = e.target.dataset.color;
+  });
+});
+saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
+playBtn.addEventListener('click', () => { 
+    menus.main.style.display = 'none'; 
+    leaderboardPanel.style.display = 'none'; 
+    canvas.style.display = 'block'; 
+    resetRun(); 
+    
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); 
+    if (!isTouchMode) canvas.requestPointerLock();
+});
+backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
+respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if(!isTouchMode) canvas.requestPointerLock(); });
+
+function resetRun() {
+  isPlaying = true;
+  myPlayer.x = 100; myPlayer.y = worldHeight - 200; myPlayer.dx = 0; myPlayer.dy = 0;
+  myPlayer.health = myPlayer.maxHealth; myPlayer.fuel = myPlayer.maxFuel;
+  myPlayer.ammo = WEAPONS['rifle'].ammo; myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
+  myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0;
+  myPlayer.weapon = 'rifle'; myPlayer.weaponExpire = 0; myPlayer.shield = 0; myPlayer.speedBoostTimer = 0;
+  myPlayer.killStreak = 0; myPlayer.invincibleTimer = Date.now() + 2500;
+  bullets = []; networkBullets = [];
+  damageNumbers = []; killFeed = []; coinParticles = [];
+  streakAnnounce = { text: '', opacity: 0 };
+  weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
+  targetBiome = biomes[0]; currentSky = [...targetBiome.sky];
+  biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5;
+  joyLeft.active = false; joyRight.active = false;
+  keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
+  
+  mouseX = canvas.width / 2; mouseY = canvas.height / 2;
+  
+  buildMap(); initParticles(); gameLoop();
+}
+
+function killPlayer() {
+  isPlaying = false; myPlayer.health = 0;
+  document.exitPointerLock();
+  if (isOnline && socket && socket.connected) {
+    socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0, weapon: myPlayer.weapon });
+    socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
+  }
+  joyLeft.active = false; joyRight.active = false;
+  keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
+  document.getElementById('finalKillsText').innerText = `YOUR STREAK: ${myPlayer.kills}`;
+  canvas.style.display = 'none'; menus.death.style.display = 'flex'; leaderboardPanel.style.display = 'block';
+}
+
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 });
+}
+function updateParticles() {
+  let time = Date.now() * 0.002;
+  for (let p of particles) {
+    if (targetBiome.pType === "pollen") { p.vy = -0.5; p.vx = Math.sin(time + p.driftOffset) * 0.5; }
+    else if (targetBiome.pType === "dust") { p.vy = 0; p.vx = 4 + Math.random() * 2; }
+    else if (targetBiome.pType === "ash") { p.vy = 3; p.vx = 0.5; }
+    else if (targetBiome.pType === "snow") { p.vy = 1.5; p.vx = Math.sin(time + p.driftOffset) * 1.5; }
+    else if (targetBiome.pType === "spark") { p.vy = -2; p.vx = 0; }
+    p.x += p.vx; p.y += p.vy;
+    if (p.y > canvas.height + 10) p.y = -10; if (p.y < -10) p.y = canvas.height + 10;
+    if (p.x > canvas.width + 10) p.x = -10; if (p.x < -10) p.x = canvas.width + 10;
+  }
+}
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; initParticles(); }
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+function checkStreak(ks) {
+  if (ks === 2) { streakAnnounce = { text: 'DOUBLE KILL!', opacity: 3.0 }; }
+  else if (ks === 3) { streakAnnounce = { text: '🔥 TRIPLE KILL! +SPEED', opacity: 3.5 }; myPlayer.speedBoostTimer = Date.now() + 6000; }
+  else if (ks === 5) { streakAnnounce = { text: '💀 KILLING SPREE! +SHIELD', opacity: 3.5 }; myPlayer.shield = myPlayer.maxShield; }
+  else if (ks === 7) { streakAnnounce = { text: '⚡ RAMPAGE! +SPEED +SHIELD', opacity: 3.5 }; myPlayer.speedBoostTimer = Date.now() + 8000; myPlayer.shield = myPlayer.maxShield; }
+  else if (ks === 10) { streakAnnounce = { text: '☠ UNSTOPPABLE! INFINITE JETPACK', opacity: 4.0 }; myPlayer.shield = myPlayer.maxShield; myPlayer.unlimitedFuelTimer = Date.now() + 15000; }
+  else if (ks > 10 && ks % 5 === 0) { streakAnnounce = { text: `👑 ${ks} KILL STREAK!`, opacity: 4.0 }; myPlayer.shield = myPlayer.maxShield; }
+}
+
+function spawnCoins(wx, wy) {
+  for (let i = 0; i < 10; i++) {
+    let angle = Math.random() * Math.PI * 2;
+    let speed = 1.5 + Math.random() * 3.5;
+    coinParticles.push({ x: wx, y: wy, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2.5, opacity: 1.8, size: 3 + Math.random() * 5 });
+  }
+}
+
+function mulberry32(a) { return function() { var t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function checkOverlap(nx, ny, nw, nh) {
+  const PAD = 40; 
+  for (let obj of map) {
+    if (obj.type === 'wall' || obj.type === 'floor') continue;
+    if (nx < obj.x + obj.w + PAD && nx + nw + PAD > obj.x &&
+        ny < obj.y + obj.h + PAD && ny + nh + PAD > obj.y) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function spawnPowerup(x, y, rand) {
+  if (rand() > 0.45) return;
+  const types   = ['health', 'jetpack', 'shield', 'speed', 'shotgun', 'sniper'];
+  const weights = [0.28,     0.18,      0.14,     0.12,    0.16,      0.12];
+  let rr = rand(), cum = 0;
+  for (let i = 0; i < types.length; i++) { cum += weights[i]; if (rr < cum) { powerups.push({ x, y, w: 30, h: 30, type: types[i] }); return; } }
+  powerups.push({ x, y, w: 30, h: 30, type: 'health' });
+}
+
+function buildMap() {
+  map = [
+    { x: -50,       y: 0,              w: 50,      h: worldHeight, type: "wall"  },
+    { x: worldWidth,y: 0,              w: 50,      h: worldHeight, type: "wall"  },
+    { x: 0,         y: -50,            w: worldWidth, h: 50,       type: "wall"  },
+    { x: 0,         y: worldHeight-50, w: worldWidth, h: 50,       type: "floor" }
+  ];
+  powerups = [];
+  let rand = mulberry32(12345);
+
+  let cx = 200;
+  while (cx < worldWidth - 400) {
+    let pw = 130 + rand() * 270, py = worldHeight - 130 - rand() * 520;
+    if (!checkOverlap(cx, py, pw, 28)) {
+        map.push({ x: cx, y: py, w: pw, h: 28, type: "plat", tier: 0 });
+        if (rand() > 0.45) { 
+            let cw = 38 + rand() * 28, ch = 50 + rand() * 40; 
+            if(!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) {
+                map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); 
+            }
+        }
+        spawnPowerup(cx + pw * rand(), py - 32, rand);
+    }
+    cx += pw + 40 + rand() * 140;
+  }
+
+  cx = 350;
+  while (cx < worldWidth - 600) {
+    let pw = 110 + rand() * 200, py = worldHeight - 650 - rand() * 380;
+    if (!checkOverlap(cx, py, pw, 24)) {
+        let isMoving = rand() > 0.68;
+        let plat = { x: cx, y: py, w: pw, h: 24, type: "plat", tier: 1 };
+        if (isMoving) {
+          plat.moving = true; plat.moveBase = cx; plat.moveRange = 110 + rand() * 220;
+          plat.moveSpeed = 0.00045 + rand() * 0.00065; plat.movePhase = rand() * Math.PI * 2;
+        }
+        map.push(plat);
+        if (rand() > 0.5) { 
+            let cw = 32 + rand() * 24, ch = 28 + rand() * 28; 
+            if (!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) {
+                map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); 
+            }
+        }
+        spawnPowerup(cx + pw * rand(), py - 32, rand);
+    }
+    cx += pw + 80 + rand() * 240;
+  }
+
+  cx = 500;
+  while (cx < worldWidth - 800) {
+    let pw = 90 + rand() * 170, py = worldHeight - 1100 - rand() * 480;
+    if (!checkOverlap(cx, py, pw, 22)) {
+        let isMoving = rand() > 0.45;
+        let plat = { x: cx, y: py, w: pw, h: 22, type: "plat", tier: 2 };
+        if (isMoving) {
+          plat.moving = true; plat.moveBase = cx; plat.moveRange = 90 + rand() * 200;
+          plat.moveSpeed = 0.0006 + rand() * 0.001; plat.movePhase = rand() * Math.PI * 2;
+          plat.moveY = rand() > 0.55; 
+          if (plat.moveY) { plat.moveBaseY = py; plat.moveRangeY = 60 + rand() * 100; plat.moveSpeedY = 0.0004 + rand() * 0.0006; plat.movePhaseY = rand() * Math.PI * 2; }
+        }
+        map.push(plat);
+        spawnPowerup(cx + pw * rand(), py - 32, rand);
+    }
+    cx += pw + 120 + rand() * 320;
+  }
+
+  cx = 700;
+  while (cx < worldWidth - 1000) {
+    let pw = 120 + rand() * 280, py = 120 + rand() * 420;
+    if (!checkOverlap(cx, py, pw, 20)) {
+        let isMoving = rand() > 0.6;
+        let plat = { x: cx, y: py, w: pw, h: 20, type: "plat", tier: 3 };
+        if (isMoving) {
+          plat.moving = true; plat.moveBase = cx; plat.moveRange = 80 + rand() * 180;
+          plat.moveSpeed = 0.0003 + rand() * 0.0005; plat.movePhase = rand() * Math.PI * 2;
+        }
+        map.push(plat);
+        if (rand() > 0.5) { 
+            let cw = 30 + rand() * 25, ch = 20 + rand() * 24; 
+            if(!checkOverlap(cx + pw * rand() - 15, py - ch, cw, ch)) {
+                map.push({ x: cx + pw * rand() - 15, y: py - ch, w: cw, h: ch, type: "cover" }); 
+            }
+        }
+        spawnPowerup(cx + pw * rand(), py + 22, rand);
+    }
+    cx += pw + 220 + rand() * 500;
+  }
+
+  let tx = 600;
+  while (tx < worldWidth - 500) {
+    let tH = 200 + rand() * 600, tY = worldHeight - 700 - rand() * 600, tW = 20 + rand() * 15;
+    if (!checkOverlap(tx, tY, tW, tH)) {
+        map.push({ x: tx, y: tY, w: tW, h: tH, type: "cover" });
+        for (let gy = tY + 40; gy < tY + tH - 40; gy += 100 + rand() * 80) {
+          if(!checkOverlap(tx - 80 - rand() * 40, gy, 70 + rand() * 30, 16)) {
+              map.push({ x: tx - 80 - rand() * 40, y: gy, w: 70 + rand() * 30, h: 16, type: "plat", tier: 1 });
+          }
+        }
+    }
+    tx += 500 + rand() * 900;
+  }
+
+  let fx = 1000;
+  while (fx < worldWidth - 1200) {
+    let baseY = 400 + rand() * 800, clusterX = fx;
+    for (let ci = 0; ci < 3 + Math.floor(rand() * 3); ci++) {
+      let pw = 80 + rand() * 120, py = baseY + (rand() - 0.5) * 200;
+      if(!checkOverlap(clusterX, py, pw, 20)) {
+          map.push({ x: clusterX, y: py, w: pw, h: 20, type: "plat", tier: 2 });
+          spawnPowerup(clusterX + pw/2 - 15, py - 32, rand);
+      }
+      clusterX += pw + 30 + rand() * 60;
+    }
+    fx += 1200 + rand() * 1500;
+  }
+}
+
+window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; });
+window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=false; if (k==='d'||k==='arrowright') keys.d=false; if (k==='w'||k==='arrowup'||k===' ') keys.w=false; });
+
+canvas.addEventListener('mousemove', (e) => { 
+    if (document.pointerLockElement === canvas) {
+        mouseX += e.movementX;
+        mouseY += e.movementY;
+        mouseX = Math.max(0, Math.min(canvas.width, mouseX));
+        mouseY = Math.max(0, Math.min(canvas.height, mouseY));
+    } else {
+        mouseX = e.clientX; 
+        mouseY = e.clientY; 
+    }
+});
+
+canvas.addEventListener('mousedown', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = true; });
+canvas.addEventListener('mouseup', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = false; });
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault(); if (!isPlaying) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    let t = e.changedTouches[i];
+    if (t.clientX < canvas.width / 2) { joyLeft.active=true; joyLeft.touchId=t.identifier; joyLeft.startX=t.clientX; joyLeft.startY=t.clientY; joyLeft.dx=0; joyLeft.dy=0; }
+    else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; keys.fire=true; }
+  }
+}, {passive: false});
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault(); if (!isPlaying) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    let t = e.changedTouches[i];
+    if (joyLeft.active && t.identifier===joyLeft.touchId) { let dx=t.clientX-joyLeft.startX; let dy=t.clientY-joyLeft.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyLeft.dx=dx; joyLeft.dy=dy; }
+    if (joyRight.active && t.identifier===joyRight.touchId) { let dx=t.clientX-joyRight.startX; let dy=t.clientY-joyRight.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyRight.dx=dx; joyRight.dy=dy; keys.fire = Math.hypot(dx,dy) > 20; }
+  }
+}, {passive: false});
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    let t = e.changedTouches[i];
+    if (joyLeft.active && t.identifier===joyLeft.touchId) { joyLeft.active=false; keys.a=false; keys.d=false; keys.w=false; }
+    if (joyRight.active && t.identifier===joyRight.touchId) { joyRight.active=false; keys.fire=false; }
+  }
+}, {passive: false});
+
+function shoot() {
+  const w = WEAPONS[myPlayer.weapon];
+  let bx = myPlayer.x + myPlayer.width/2, by = myPlayer.y + myPlayer.height/2;
+  for (let p = 0; p < w.pellets; p++) {
+    let spread = (Math.random() - 0.5) * w.spread;
+    let angle = myPlayer.aimAngle + spread;
+    let bvx = Math.cos(angle) * w.speed, bvy = Math.sin(angle) * w.speed;
+    let radius = myPlayer.weapon === 'sniper' ? 6 : myPlayer.weapon === 'shotgun' ? 3 : 4;
+    bullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius, weapon: myPlayer.weapon, color: w.bulletColor });
+    if (isOnline && socket && socket.connected) socket.emit('shoot', { x: bx, y: by, vx: bvx, vy: bvy, radius });
+  }
+}
+
+function update() {
+  let t = Date.now();
+
+  let targetZoom = WEAPONS[myPlayer.weapon].zoom;
+  currentZoom += (targetZoom - currentZoom) * 0.05;
+
+  if (myPlayer.weapon !== 'rifle' && t > myPlayer.weaponExpire) {
+    myPlayer.weapon = 'rifle';
+    myPlayer.ammo = WEAPONS['rifle'].ammo; 
+    myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
+    myPlayer.isReloading = false;
+    weaponPickupAnnounce = { text: `WEAPON EXPIRED`, opacity: 2.5, color: '#fff' };
+  }
+
+  for (let obj of map) {
+    if (!obj.moving) continue;
+    obj.x = obj.moveBase + Math.sin(t * obj.moveSpeed + obj.movePhase) * obj.moveRange;
+    if (obj.moveY) obj.y = obj.moveBaseY + Math.sin(t * obj.moveSpeedY + obj.movePhaseY) * obj.moveRangeY;
+  }
+
+  let effW = canvas.width / currentZoom;
+  let effH = canvas.height / currentZoom;
+
+  if (isTouchMode) {
+    if (joyLeft.active) { keys.a = joyLeft.dx < -15; keys.d = joyLeft.dx > 15; keys.w = joyLeft.dy < -15; }
+    if (joyRight.active) { myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); }
+  } else {
+    const wx = (mouseX / currentZoom) + camera.x, wy = (mouseY / currentZoom) + camera.y; 
+    myPlayer.aimAngle = Math.atan2(wy - (myPlayer.y + myPlayer.height/2), wx - (myPlayer.x + myPlayer.width/2));
+  }
+
+  let newBiome = targetBiome;
+  for (let b of biomes) { if (myPlayer.x < b.endX) { newBiome = b; break; } }
+  if (newBiome !== targetBiome) { targetBiome = newBiome; biomePopupName = targetBiome.name; biomePopupOpacity = 2.5; }
+  if (biomePopupOpacity > 0) biomePopupOpacity -= 0.02;
+
+  currentSky[0] += (targetBiome.sky[0] - currentSky[0]) * 0.05;
+  currentSky[1] += (targetBiome.sky[1] - currentSky[1]) * 0.05;
+  currentSky[2] += (targetBiome.sky[2] - currentSky[2]) * 0.05;
+  updateParticles();
+
+  let spd = myPlayer.speed;
+  if (myPlayer.speedBoostTimer > t) spd *= 1.65;
+  let prevX = myPlayer.x;
+  if (keys.a) myPlayer.x -= spd; if (keys.d) myPlayer.x += spd;
+  for (let obj of map) { if (myPlayer.x < obj.x+obj.w && myPlayer.x+myPlayer.width > obj.x && myPlayer.y < obj.y+obj.h && myPlayer.y+myPlayer.height > obj.y) myPlayer.x = prevX; }
+  myPlayer.dy += myPlayer.gravity;
+  let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
+  if (keys.w && (myPlayer.fuel > 0 || hasUnlimitedJetpack)) { myPlayer.dy -= myPlayer.jetpackForce; if (!hasUnlimitedJetpack) myPlayer.fuel -= 1.0; }
+  else if (!keys.w && myPlayer.fuel < myPlayer.maxFuel) myPlayer.fuel += 1.5;
+  myPlayer.y += myPlayer.dy;
+  for (let obj of map) { if (myPlayer.x < obj.x+obj.w && myPlayer.x+myPlayer.width > obj.x && myPlayer.y < obj.y+obj.h && myPlayer.y+myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
+
+  for (let id in networkPlayers) {
+    let np = networkPlayers[id]; if (np.health <= 0) continue;
+    if (np.targetX !== undefined) {
+      if (Math.hypot(np.targetX - np.x, np.targetY - np.y) > 250) { np.x = np.targetX; np.y = np.targetY; }
+      else { np.x += (np.targetX - np.x) * 0.3; np.y += (np.targetY - np.y) * 0.3; }
+    }
+  }
+
+  let syncNeeded = Math.abs(myPlayer.x - myPlayer.lastX) > 1 || Math.abs(myPlayer.y - myPlayer.lastY) > 1 || myPlayer.aimAngle !== myPlayer.lastAim || myPlayer.health !== myPlayer.lastHealth;
+  if (isOnline && socket && socket.connected && t - lastSyncTime > 30 && syncNeeded) {
+    socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: myPlayer.health, weapon: myPlayer.weapon });
+    lastSyncTime = t; myPlayer.lastX = myPlayer.x; myPlayer.lastY = myPlayer.y; myPlayer.lastAim = myPlayer.aimAngle; myPlayer.lastHealth = myPlayer.health;
+  }
+
+  for (let i = powerups.length - 1; i >= 0; i--) {
+    let p = powerups[i];
+    if (myPlayer.x < p.x+p.w && myPlayer.x+myPlayer.width > p.x && myPlayer.y < p.y+p.h && myPlayer.y+myPlayer.height > p.y) {
+      if (p.type === 'health') { myPlayer.health = Math.min(myPlayer.maxHealth, myPlayer.health + 50); killFeed.push({ text: '+ MEDPACK (+50 HP)', timer: 3.0, color: '#2ecc71' }); }
+      else if (p.type === 'jetpack') { myPlayer.unlimitedFuelTimer = t + 10000; myPlayer.fuel = myPlayer.maxFuel; killFeed.push({ text: '+ INFINITE JETPACK (10s)', timer: 3.0, color: '#00cec9' }); }
+      else if (p.type === 'shield') { myPlayer.shield = myPlayer.maxShield; killFeed.push({ text: '+ SHIELD ACTIVE', timer: 3.0, color: '#74b9ff' }); }
+      else if (p.type === 'speed') { myPlayer.speedBoostTimer = t + 7000; killFeed.push({ text: '+ SPEED BOOST (7s)', timer: 3.0, color: '#fdcb6e' }); }
+      else if (p.type === 'shotgun' || p.type === 'sniper') {
+        myPlayer.weapon = p.type;
+        const w = WEAPONS[p.type]; myPlayer.ammo = w.ammo; myPlayer.maxAmmo = w.ammo; myPlayer.isReloading = false;
+        myPlayer.weaponExpire = t + 30000; 
+        weaponPickupAnnounce = { text: `⚡ ${w.name} EQUIPPED`, opacity: 3.5, color: w.crateColor };
+      }
+      powerups.splice(i, 1);
+    }
+  }
+
+  if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
+  if (keys.fire && t - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) {
+    if (myPlayer.ammo > 0 && !myPlayer.isReloading) {
+      shoot(); myPlayer.ammo--; myPlayer.lastShotTime = t;
+      if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = t; }
+    }
+  }
+
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
+    for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
+    if (!destroyed) {
+      for (let id in networkPlayers) {
+        let np = networkPlayers[id];
+        if (np.localHealth <= 0 || np.health <= 0) continue;
+        if (b.x>np.x && b.x<np.x+40 && b.y>np.y && b.y<np.y+40) {
+          destroyed = true; let dmg = WEAPONS[b.weapon || 'rifle'].damage;
+          if (np.localHealth === undefined) np.localHealth = np.health;
+          np.localHealth -= dmg;
+          damageNumbers.push({ x: np.x + 20, y: np.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
+          if (np.localHealth <= 0 && !np.countedKill) {
+            myPlayer.kills++; myPlayer.killStreak++; np.countedKill = true;
+            killFeed.push({ text: `☠ YOU → ${np.name}`, timer: 5.0, color: '#ff4757' });
+            spawnCoins(np.x + 20, np.y + 20); checkStreak(myPlayer.killStreak);
+          }
+          break;
+        }
+      }
+    }
+    if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) bullets.splice(i, 1);
+  }
+
+  for (let i = networkBullets.length - 1; i >= 0; i--) {
+    let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
+    for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
+    if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
+      destroyed = true;
+      if (myPlayer.invincibleTimer > t) { } 
+      else if (myPlayer.health > 0) {
+        let dmg = 15;
+        if (myPlayer.shield > 0) { let abs = Math.min(myPlayer.shield, dmg); myPlayer.shield -= abs; dmg -= abs; }
+        if (dmg > 0) {
+          myPlayer.health -= dmg; screenShake = 0.9;
+          damageNumbers.push({ x: myPlayer.x + 20, y: myPlayer.y - 5, value: -dmg, vy: -3, opacity: 2.2, color: '#e74c3c', size: 18 });
+          if (myPlayer.health <= 0) killPlayer();
+        } else {
+          screenShake = 0.4;
+          damageNumbers.push({ x: myPlayer.x + 20, y: myPlayer.y - 5, value: 'BLOCKED', vy: -3, opacity: 2.2, color: '#74b9ff', size: 14 });
+        }
+      }
+    }
+    if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) networkBullets.splice(i, 1);
+  }
+
+  for (let i = damageNumbers.length - 1; i >= 0; i--) { let dn = damageNumbers[i]; dn.y += dn.vy; dn.vy *= 0.96; dn.opacity -= 0.025; if (dn.opacity <= 0) damageNumbers.splice(i, 1); }
+  for (let i = coinParticles.length - 1; i >= 0; i--) { let c = coinParticles[i]; c.x += c.vx; c.y += c.vy; c.vy += 0.15; c.opacity -= 0.022; if (c.opacity <= 0) coinParticles.splice(i, 1); }
+  for (let i = killFeed.length - 1; i >= 0; i--) { killFeed[i].timer -= 0.014; if (killFeed[i].timer <= 0) killFeed.splice(i, 1); }
+  if (streakAnnounce.opacity > 0) streakAnnounce.opacity -= 0.016;
+  if (weaponPickupAnnounce.opacity > 0) weaponPickupAnnounce.opacity -= 0.018;
+  if (screenShake > 0) screenShake = Math.max(0, screenShake - 0.04);
+
+  camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width/2 - effW/2, worldWidth - effW));
+  camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height/2 - effH/2, worldHeight - effH));
+}
+
+function drawHUDBar(x, y, w, h, fillRatio, bgColor, fillColor, label, labelColor, fSize) {
+  ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x-2, y-2, w+4, h+4);
+  ctx.fillStyle = bgColor; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = fillColor; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, fillRatio)), h);
+  ctx.fillStyle = labelColor || 'white'; ctx.font = `bold ${fSize}px "Share Tech Mono", monospace`;
+  ctx.textAlign = 'left'; ctx.fillText(label, x+6, y + h - (h*0.25));
+}
+
+function drawJoystick(joy, color) {
+  if (!isTouchMode || !joy.active) return; 
+  ctx.save(); ctx.globalAlpha = 0.4;
+  ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(joy.startX, joy.startY, 55, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(joy.startX+joy.dx, joy.startY+joy.dy, 28, 0, Math.PI*2); ctx.fill(); ctx.restore();
+}
+
+function draw() {
+  let t = Date.now();
+  ctx.fillStyle = `rgb(${Math.round(currentSky[0])},${Math.round(currentSky[1])},${Math.round(currentSky[2])})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.fillStyle = targetBiome.pColor; for (let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
+
+  let shakeX = 0, shakeY = 0;
+  if (screenShake > 0) { shakeX = (Math.random()-0.5)*screenShake*14; shakeY = (Math.random()-0.5)*screenShake*14; }
+  
+  ctx.save(); 
+  ctx.scale(currentZoom, currentZoom);
+  ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
+  
+  let effW = canvas.width / currentZoom;
+  const viewLeft = camera.x - 200; const viewRight = camera.x + effW + 200;
+
+  for (let p of powerups) {
+    if (p.x > viewRight || p.x+p.w < viewLeft) continue;
+    let pulse = 0.75 + Math.sin(t * 0.005 + p.x * 0.01) * 0.25;
+    ctx.save(); ctx.globalAlpha = pulse;
+    if (p.type==='health') { ctx.fillStyle='#2ecc71'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.fillRect(p.x+10,p.y+4,10,22); ctx.fillRect(p.x+4,p.y+10,22,10); }
+    else if (p.type==='jetpack') { ctx.fillStyle='#00cec9'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.font='bold 11px Arial'; ctx.textAlign='center'; ctx.fillText('INF',p.x+15,p.y+20); }
+    else if (p.type==='shield') { ctx.fillStyle='#74b9ff'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.font='18px Arial'; ctx.textAlign='center'; ctx.fillText('🛡',p.x+15,p.y+23); }
+    else if (p.type==='speed') { ctx.fillStyle='#fdcb6e'; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.fillStyle='#2d3436'; ctx.font='18px Arial'; ctx.textAlign='center'; ctx.fillText('⚡',p.x+15,p.y+23); }
+    else if (p.type==='shotgun' || p.type==='sniper') { const wc = WEAPONS[p.type]; ctx.fillStyle = wc.crateColor; ctx.fillRect(p.x,p.y,p.w,p.h); ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5; ctx.strokeRect(p.x,p.y,p.w,p.h); ctx.fillStyle='white'; ctx.font='bold 8px "Share Tech Mono",monospace'; ctx.textAlign='center'; ctx.fillText(wc.name,p.x+15,p.y+19); }
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.18 + Math.sin(t*0.008)*0.1; ctx.strokeStyle = p.type==='shotgun'?'#e67e22': p.type==='sniper'?'#a29bfe': p.type==='shield'?'#74b9ff': p.type==='speed'?'#fdcb6e':'#2ecc71'; ctx.lineWidth=3; ctx.beginPath(); ctx.rect(p.x-4,p.y-4,p.w+8,p.h+8); ctx.stroke(); ctx.restore();
+  }
+
+  for (let obj of map) {
+    if (obj.x > viewRight || obj.x+obj.w < viewLeft) continue;
+    if (obj.type==='cover') { ctx.fillStyle='#2c3e50'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1; ctx.strokeRect(obj.x,obj.y,obj.w,obj.h); ctx.fillStyle='rgba(255,255,255,0.04)'; for (let lx = obj.x+8; lx < obj.x+obj.w-4; lx+=12) ctx.fillRect(lx,obj.y+4,2,obj.h-8); }
+    else {
+      let tc = '#55efc4'; for (let b of biomes) { if(obj.x<b.endX){tc=b.ground;break;} }
+      ctx.fillStyle = '#34495e'; ctx.fillRect(obj.x,obj.y,obj.w,obj.h); ctx.fillStyle = tc; ctx.fillRect(obj.x,obj.y,obj.w,8);
+      if (obj.moving) { ctx.save(); ctx.globalAlpha = 0.25 + Math.sin(t * 0.006 + obj.movePhase) * 0.15; ctx.strokeStyle = '#55efc4'; ctx.lineWidth = 1.5; ctx.strokeRect(obj.x, obj.y, obj.w, obj.h); ctx.restore(); }
+      if (obj.tier >= 2) { ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fillRect(obj.x,obj.y+8,obj.w,obj.h-8); }
+    }
+  }
+
+  for (let id in networkPlayers) {
+    let np = networkPlayers[id]; if (np.health<=0) continue; if (np.x>viewRight || np.x+40<viewLeft) continue;
+    let npGunColor = np.weapon==='shotgun'?'#e67e22': np.weapon==='sniper'?'#a29bfe':'#bdc3c7'; let npGunLen = np.weapon==='sniper'?50: np.weapon==='shotgun'?28:35;
+    ctx.save(); ctx.translate(np.x+20,np.y+20); ctx.rotate(np.aimAngle); ctx.fillStyle=npGunColor; ctx.fillRect(0,-4,npGunLen,8); ctx.restore();
+    ctx.fillStyle=np.color; ctx.fillRect(np.x,np.y,40,40); ctx.fillStyle='red'; ctx.fillRect(np.x,np.y-12,42,5); ctx.fillStyle='#2ecc71'; ctx.fillRect(np.x,np.y-12,42*(np.health/100),5);
+    ctx.fillStyle='white'; ctx.font='bold 12px "Rajdhani",sans-serif'; ctx.textAlign='center'; ctx.fillText(np.name,np.x+20,np.y-16);
+    if (np.shield > 0) { ctx.save(); ctx.globalAlpha=0.4; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(np.x-3,np.y-3,46,46); ctx.restore(); }
+  }
+
+  const cx = myPlayer.x + myPlayer.width/2, cy = myPlayer.y + myPlayer.height/2; const wDef = WEAPONS[myPlayer.weapon];
+  let invincible = myPlayer.invincibleTimer > Date.now();
+  
+  ctx.save();
+  ctx.beginPath();
+  ctx.setLineDash([10, 15]);
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + Math.cos(myPlayer.aimAngle) * 3000, cy + Math.sin(myPlayer.aimAngle) * 3000);
+  ctx.strokeStyle = myPlayer.weapon === 'sniper' ? 'rgba(162, 155, 254, 0.5)' : 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save(); if (invincible && Math.floor(t / 80) % 2 === 0) ctx.globalAlpha = 0.35;
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(myPlayer.aimAngle); ctx.fillStyle = wDef.barrelColor; ctx.fillRect(0, -(wDef.barrelH/2), wDef.barrelLen, wDef.barrelH); ctx.restore();
+  ctx.fillStyle = myPlayer.color; ctx.fillRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.strokeRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height);
+  ctx.restore();
+  if (myPlayer.shield > 0) { ctx.save(); ctx.globalAlpha = 0.5 + Math.sin(t*0.01)*0.2; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(myPlayer.x-3,myPlayer.y-3,46,46); ctx.restore(); }
+  if (myPlayer.speedBoostTimer > Date.now() && (keys.a || keys.d)) { ctx.save(); ctx.globalAlpha=0.3; ctx.fillStyle='#fdcb6e'; ctx.fillRect(myPlayer.x - (keys.d?10:0), myPlayer.y+5, 6, myPlayer.height-10); ctx.fillRect(myPlayer.x + myPlayer.width + (keys.a?4:0), myPlayer.y+5, 6, myPlayer.height-10); ctx.restore(); }
+  ctx.fillStyle='white'; ctx.font='bold 13px "Rajdhani",sans-serif'; ctx.textAlign='center'; ctx.fillText(myPlayer.name, cx, myPlayer.y-12);
+
+  if (myPlayer.isReloading) { let rp = (t - myPlayer.reloadStartTime) / WEAPONS[myPlayer.weapon].reload; ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(myPlayer.x-12,myPlayer.y-30,66,8); ctx.fillStyle = wDef.barrelColor; ctx.fillRect(myPlayer.x-12,myPlayer.y-30,66*rp,8); }
+  bullets.forEach(b => { ctx.fillStyle = b.color || '#f1c40f'; if (b.weapon === 'sniper') { ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx)); ctx.fillStyle = '#a29bfe'; ctx.fillRect(-14, -2, 28, 4); ctx.restore(); } else { ctx.beginPath(); ctx.arc(b.x,b.y,b.radius,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1; ctx.stroke(); } });
+  ctx.fillStyle='#e74c3c'; networkBullets.forEach(b => { ctx.beginPath(); ctx.arc(b.x,b.y,b.radius||4,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke(); });
+
+  for (let dn of damageNumbers) { ctx.save(); ctx.globalAlpha = Math.min(1, dn.opacity); ctx.fillStyle = dn.color; ctx.font = `bold ${dn.size || 16}px "Rajdhani", sans-serif`; ctx.textAlign = 'center'; ctx.shadowColor = dn.color; ctx.shadowBlur = 8; ctx.fillText(dn.value, dn.x, dn.y); ctx.restore(); }
+  for (let c of coinParticles) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, c.opacity)); ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore(); }
+  
+  ctx.restore(); 
+
+  const isMob = canvas.width < 768;
+  const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22;
+  const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8);
+  const y1 = isMob ? 10 : 22, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
+
+  drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
+  if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
+  const jY = myPlayer.shield > 0 ? y3 : y2; const aY = jY + gap, kY = aY + gap, wY = kY + gap;
+  let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
+  drawHUDBar(HX, jY, HW, HH, hasUnlimitedJetpack ? 1 : myPlayer.fuel/myPlayer.maxFuel, '#002020', hasUnlimitedJetpack?'#00cec9':'#3498db', hasUnlimitedJetpack?'JETPACK ∞':'JETPACK', 'white', fSize);
+  
+  ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, aY, HW+4, HH+4); ctx.fillStyle=(myPlayer.ammo===0)?'rgba(80,0,0,0.8)':'rgba(255,255,255,0.06)'; ctx.fillRect(HX, aY+2, HW, HH); ctx.fillStyle=(myPlayer.ammo===0)?'#e74c3c':'white'; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(myPlayer.isReloading ? 'RELOADING...' : `AMMO  ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, HX+6, aY+HH-3);
+  ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, kY, HW+4, HH+4); ctx.fillStyle='rgba(241,196,15,0.1)'; ctx.fillRect(HX, kY+2, HW, HH); ctx.fillStyle='#f1c40f'; ctx.font=`bold ${fSize+1}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`KILLS  ${myPlayer.kills}  STREAK ${myPlayer.killStreak}`, HX+6, kY+HH-3);
+  
+  let wTimeStr = "";
+  if (myPlayer.weapon !== 'rifle') {
+    wTimeStr = ` [${Math.ceil((myPlayer.weaponExpire - t) / 1000)}s]`;
+  }
+  const wCol = wDef.crateColor || '#bdc3c7';
+  ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, wY, HW+4, HH+4); ctx.fillStyle = wCol + '22'; ctx.fillRect(HX, wY+2, HW, HH); ctx.strokeStyle = wCol; ctx.lineWidth=1; ctx.strokeRect(HX, wY+2, HW, HH); ctx.fillStyle = wCol; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚙ ${wDef.name}${wTimeStr}`, HX+6, wY+HH-3);
+  if (myPlayer.speedBoostTimer > t) { let remaining = Math.ceil((myPlayer.speedBoostTimer - t) / 1000); ctx.fillStyle='#fdcb6e'; ctx.font=`bold ${fSize-2}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, wY+HH+(isMob?14:18)); }
+  if (invincible) { ctx.save(); ctx.globalAlpha = 0.6 + Math.sin(t * 0.02) * 0.4; ctx.fillStyle = '#55efc4'; ctx.font = `bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText('★ INVINCIBLE', HX+6, wY+HH+(isMob?28:36)); ctx.restore(); }
+
+  if (biomePopupOpacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(biomePopupOpacity, 1.0); ctx.textAlign='center'; ctx.fillStyle='white'; ctx.font=`bold ${isMob?32:52}px "Rajdhani",sans-serif`; ctx.fillText(biomePopupName, canvas.width/2, canvas.height*0.25); ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.fillRect(canvas.width/2 - (isMob?120:180), canvas.height*0.25+14, isMob?240:360, 3); ctx.restore(); }
+  if (streakAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, streakAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?28:44}px "Rajdhani",sans-serif`; ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 30; ctx.fillStyle = '#f1c40f'; ctx.fillText(streakAnnounce.text, canvas.width/2, canvas.height*0.4); ctx.restore(); }
+  if (weaponPickupAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, weaponPickupAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?24:36}px "Rajdhani",sans-serif`; ctx.fillStyle = weaponPickupAnnounce.color; ctx.shadowColor = weaponPickupAnnounce.color; ctx.shadowBlur = 20; ctx.fillText(weaponPickupAnnounce.text, canvas.width/2, canvas.height*0.55); ctx.restore(); }
+
+  const mmW = isMob ? 120 : 180, mmH = isMob ? 32 : 48;
+  const mmX = canvas.width - mmW - (isMob ? 10 : 22); const mmY = isMob ? 10 : 22;
+  const mm = { x: mmX, y: mmY, w: mmW, h: mmH };
+  ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(mm.x-2, mm.y-2, mm.w+4, mm.h+4); ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(mm.x, mm.y, mm.w, mm.h);
+  const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  for (let obj of map) { if (obj.type==='plat'||obj.type==='floor') ctx.fillRect(mm.x+obj.x*sx, mm.y+obj.y*sy, Math.max(1.5,obj.w*sx), 1); }
+  for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health<=0) continue; ctx.fillStyle = np.color; ctx.fillRect(mm.x + np.x*sx - 2, mm.y + np.y*sy - 2, 4, 4); }
+  ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
+  ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
+
+  ctx.save(); ctx.font = `${isMob?10:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right';
+  let kfY = mm.y + mm.h + 20; 
+  for (let kf of killFeed) {
+    ctx.globalAlpha = Math.min(1, kf.timer); let w = ctx.measureText(kf.text).width + 20;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width - w - 12, kfY - 16, w, 20);
+    ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 12, kfY); kfY += 24;
+  }
+  ctx.restore();
+
+  drawJoystick(joyLeft, '#3498db'); drawJoystick(joyRight, '#e74c3c');
+}
+
+function gameLoop() { if (isPlaying) { update(); draw(); requestAnimationFrame(gameLoop); } }
+  </script>
+</body>
+</html>
