@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Multiplayer</title>
+  <title>BaylerBay Ops - Esports Build</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
@@ -23,9 +23,11 @@
     button.ui-btn:active { background: #c0392b; transform: translateY(0); }
     button.ui-btn.secondary { background: rgba(44, 62, 80, 0.9); border: 1px solid rgba(127,140,141,0.4); }
     button.ui-btn.secondary:hover { background: #2c3e50; }
+    button.ui-btn.action { background: #3498db; }
+    button.ui-btn.action:hover { background: #5dade2; }
     .setting-group { margin: 16px 0; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    input[type="text"] { padding: 16px 20px; font-size: 1.1rem; font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; border-radius: 3px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: white; text-align: center; width: 290px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
-    input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(85,239,196,0.15); }
+    input[type="text"], input[type="password"] { padding: 16px 20px; font-size: 1.1rem; font-family: 'Share Tech Mono', monospace; letter-spacing: 2px; border-radius: 3px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: white; text-align: center; width: 290px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    input[type="text"]:focus, input[type="password"]:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(85,239,196,0.15); }
     #loginStatus { font-family: 'Share Tech Mono', monospace; font-size: 1rem; padding: 10px 20px; border-radius: 3px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); min-width: 290px; margin-bottom: 8px; }
     #kickedOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; }
     #kickedOverlay.visible { display: flex; }
@@ -45,7 +47,7 @@
       .menu-screen { justify-content: flex-start; padding-top: 5vh; height: 100vh; overflow: hidden; }
       h1 { font-size: 2.4rem; letter-spacing: 3px; margin-bottom: 5px; }
       .subtitle { margin-bottom: 15px; font-size: 0.8rem; }
-      button.ui-btn, input[type="text"] { width: 260px; }
+      button.ui-btn, input[type="text"], input[type="password"] { width: 260px; }
       #leaderboardPanel { right: auto; top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 360px; max-height: 35vh; overflow-y: auto; padding: 15px; }
     }
   </style>
@@ -60,21 +62,27 @@
     <p id="loginStatus" style="color: #f1c40f;">Connecting to server...</p>
     <div class="setting-group">
       <input type="text" id="loginName" placeholder="CALLSIGN" maxlength="12">
-      <input type="text" id="loginRoom" placeholder="ROOM (Blank = Public)" maxlength="15">
+      <input type="password" id="loginPin" placeholder="SECRET PIN" maxlength="8">
     </div>
     <button id="authBtn" class="ui-btn" style="display: none;">Verify &amp; Link</button>
-  </div>
-
-  <div id="leaderboardPanel">
-    <h3>Top Operators</h3>
-    <table class="lb-table"><thead><tr><th>#</th><th>Callsign</th><th style="text-align:center;">1-Life</th><th style="text-align:right;">Total</th></tr></thead><tbody id="leaderboardBody"><tr><td colspan="4" style="text-align:center; padding-top:16px; color:#555;">Loading data...</td></tr></tbody></table>
   </div>
 
   <div id="mainMenu" class="menu-screen" style="display:none;">
     <h1>BaylerBay Ops</h1>
     <p class="subtitle">PC: CLICK TO LOCK AIM &nbsp;|&nbsp; MOBILE: TOUCH JOYSTICKS</p>
-    <button id="playBtn" class="ui-btn">Deploy Online</button>
-    <button id="settingsBtn" class="ui-btn secondary">Armor Config</button>
+    <button id="onlineBtn" class="ui-btn">Online Play</button>
+    <button id="roomMenuBtn" class="ui-btn action">Room Play</button>
+    <button id="settingsBtn" class="ui-btn secondary">Avatar</button>
+  </div>
+
+  <div id="roomMenu" class="menu-screen" style="display:none;">
+    <h1 style="color: var(--gold);">Private Room</h1>
+    <p class="subtitle">[ ENTER TOURNAMENT CODE ]</p>
+    <div class="setting-group">
+      <input type="text" id="roomCodeInput" placeholder="ROOM CODE" maxlength="15">
+    </div>
+    <button id="joinRoomBtn" class="ui-btn">Join Match</button>
+    <button id="backFromRoomBtn" class="ui-btn secondary">Back</button>
   </div>
 
   <div id="settingsMenu" class="menu-screen" style="display:none;">
@@ -85,6 +93,11 @@
       </div>
     </div>
     <button id="saveSettingsBtn" class="ui-btn" style="margin-top:28px;">Save &amp; Return</button>
+  </div>
+
+  <div id="leaderboardPanel">
+    <h3>Top Operators</h3>
+    <table class="lb-table"><thead><tr><th>#</th><th>Callsign</th><th style="text-align:center;">1-Life</th><th style="text-align:right;">Total</th></tr></thead><tbody id="leaderboardBody"><tr><td colspan="4" style="text-align:center; padding-top:16px; color:#555;">Loading data...</td></tr></tbody></table>
   </div>
 
   <div id="deathScreen" class="menu-screen" style="display:none;"><h1 class="death-title">K.I.A.</h1><p id="finalKillsText">STREAK: 0</p><button id="respawnBtn" class="ui-btn">Respawn</button><button id="backMenuBtn" class="ui-btn secondary">Main Menu</button></div>
@@ -103,15 +116,32 @@
       sniper:  { damage: 65, fireRate: 1200, ammo: 5,  speed: 26, spread: 0, pellets: 1, reload: 2500, bulletColor: '#a29bfe', barrelColor: '#a29bfe', barrelLen: 54, barrelH: 6, name: 'SNIPER', crateColor: '#a29bfe', zoom: 1.4 },
     };
 
-    const menus = { login: document.getElementById('loginScreen'), main: document.getElementById('mainMenu'), settings: document.getElementById('settingsMenu'), death: document.getElementById('deathScreen') };
+    const menus = { 
+      login: document.getElementById('loginScreen'), 
+      main: document.getElementById('mainMenu'), 
+      room: document.getElementById('roomMenu'),
+      settings: document.getElementById('settingsMenu'), 
+      death: document.getElementById('deathScreen') 
+    };
+    
     const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
     const leaderboardPanel = document.getElementById('leaderboardPanel');
-    const authBtn = document.getElementById('authBtn'); const playBtn = document.getElementById('playBtn');
-    const settingsBtn = document.getElementById('settingsBtn'); const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const authBtn = document.getElementById('authBtn'); 
+    
+    // The 3 Main Menu Buttons
+    const onlineBtn = document.getElementById('onlineBtn');
+    const roomMenuBtn = document.getElementById('roomMenuBtn');
+    const settingsBtn = document.getElementById('settingsBtn'); 
+    
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const backFromRoomBtn = document.getElementById('backFromRoomBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
     const respawnBtn = document.getElementById('respawnBtn'); const backMenuBtn = document.getElementById('backMenuBtn');
     const colorBtns = document.querySelectorAll('.color-btn');
 
     let socket = null; let networkPlayers = {}; let networkBullets = []; let npcs = []; let isOnline = false; let lastSyncTime = 0;
+    let isPublicMode = true; // Dictates if NPCs spawn or not
+    
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = []; let currentZoom = 1.0;
 
@@ -148,7 +178,7 @@
     }
 
     function initNetwork() {
-      // ⚠️ CHANGE THIS TO YOUR LOCAL IP FOR OFFLINE LAN (e.g., http://192.168.1.5:3000)
+      // ALWAYS ONLINE SERVER
       const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
       
       const loginStatus = document.getElementById('loginStatus');
@@ -194,30 +224,70 @@
 
     initNetwork();
 
+    // Login logic
     authBtn.addEventListener('click', () => {
       const name = document.getElementById('loginName').value.trim(); 
-      const room = document.getElementById('loginRoom').value.trim(); // NEW: Grabs the room code
       const status = document.getElementById('loginStatus');
-      
       if (!name) { status.innerText = "Callsign required."; status.style.color = "#e74c3c"; return; }
       
       status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f";
-      
-      socket.emit('login', { name, room }, (res) => { // Sends room to server
+      socket.emit('login', { name }, (res) => { 
         if (res.success) {
-          myPlayer.name = name; networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
-          for (let id in networkPlayers) { networkPlayers[id].targetX = networkPlayers[id].x; networkPlayers[id].targetY = networkPlayers[id].y; networkPlayers[id].localHealth = networkPlayers[id].health; networkPlayers[id].countedKill = false; }
-          menus.login.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block';
-        } else { status.innerText = res.message; status.style.color = "#e74c3c"; }
+          myPlayer.name = name; 
+          menus.login.style.display = 'none'; 
+          menus.main.style.display = 'flex'; 
+        } 
       });
     });
 
-    settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
+    // 1. Online Play (Spawns NPCs)
+    onlineBtn.addEventListener('click', () => {
+      isPublicMode = true; // Enables NPCs
+      socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, (res) => {
+          networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
+          menus.main.style.display = 'none'; leaderboardPanel.style.display = 'block'; canvas.style.display = 'block';
+          resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
+      });
+    });
+
+    // 2. Room Play Menu Nav
+    roomMenuBtn.addEventListener('click', () => {
+      menus.main.style.display = 'none'; menus.room.style.display = 'flex';
+    });
+    backFromRoomBtn.addEventListener('click', () => {
+      menus.room.style.display = 'none'; menus.main.style.display = 'flex';
+    });
+
+    // Join Private Room (NO NPCs)
+    joinRoomBtn.addEventListener('click', () => {
+      const rCode = document.getElementById('roomCodeInput').value.trim();
+      if(!rCode) return;
+      
+      isPublicMode = false; // Disables NPCs for private esports match
+      socket.emit('joinGame', { room: rCode, color: myPlayer.color }, (res) => {
+          networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
+          menus.room.style.display = 'none'; leaderboardPanel.style.display = 'block'; canvas.style.display = 'block';
+          resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
+      });
+    });
+
+    // 3. Avatar Nav
+    settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
+    saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
+    
     colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
-    saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
-    playBtn.addEventListener('click', () => { menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock(); });
-    backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
-    respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if(!isTouchMode) canvas.requestPointerLock(); });
+    
+    backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
+    
+    respawnBtn.addEventListener('click', () => { 
+        menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; 
+        
+        // Rejoin logic to reset server-side position
+        socket.emit('joinGame', { room: isPublicMode ? 'GLOBAL_PUBLIC' : document.getElementById('roomCodeInput').value.trim(), color: myPlayer.color }, () => {
+            resetRun(); if(!isTouchMode) canvas.requestPointerLock(); 
+            leaderboardPanel.style.display = 'block';
+        });
+    });
 
     function resetRun() {
       isPlaying = true;
@@ -233,7 +303,13 @@
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
-      npcs = spawnNPCs(6); 
+      // ONLY spawn NPCs if playing the public mode!
+      if (isPublicMode) {
+          npcs = spawnNPCs(6); 
+      } else {
+          npcs = []; // Empty for Private Tournaments
+      }
+      
       buildMap(); initParticles(); gameLoop();
     }
 
@@ -333,14 +409,13 @@
       if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
       if (keys.fire && t - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) { if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = t; if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = t; } } }
 
-      // --- NPC LOGIC LOOP ---
+      // --- NPC LOGIC LOOP (ONLY RUNS IN PUBLIC MODE) ---
       for (let i = npcs.length - 1; i >= 0; i--) {
         let npc = npcs[i];
         if (!npc || typeof npc.update !== 'function') continue;
         
         npc.update(map, networkPlayers, myPlayer, 16, networkBullets, npcs);
         
-        // Did MY bullets hit this NPC?
         bullets.forEach((b, bIdx) => {
             if (b.x > npc.x && b.x < npc.x + 40 && b.y > npc.y && b.y < npc.y + 40) {
                 let dmg = WEAPONS[b.weapon || 'rifle'].damage;
@@ -353,7 +428,7 @@
                     killFeed.push({ text: `☠ YOU → ${npc.name}`, timer: 5.0, color: '#ff4757' });
                     spawnCoins(npc.x + 20, npc.y + 20);
                     
-                    setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
+                    if (isPublicMode) setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
                 }
             }
         });
@@ -384,7 +459,7 @@
         
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
-        // Does this hit ME?
+        // Hits ME?
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
           destroyed = true;
           if (myPlayer.invincibleTimer <= t && myPlayer.health > 0) {
@@ -395,7 +470,7 @@
           }
         }
 
-        // Does this hit OTHER NPCs? (Bots killing Bots)
+        // Hits NPCs?
         if (!destroyed) {
           for (let n = 0; n < npcs.length; n++) {
             let npc = npcs[n];
@@ -413,7 +488,8 @@
                   else if (networkPlayers[b.ownerId]) { killerName = networkPlayers[b.ownerId].name; } 
                   else { killerName = "OPERATOR"; }
                   killFeed.push({ text: `🤖 ${killerName} → ${npc.name}`, timer: 4.0, color: '#bdc3c7' }); 
-                  setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
+                  
+                  if (isPublicMode) setTimeout(() => { if (isPlaying) npcs.push(spawnNPCs(1)[0]); }, 3000);
               }
               break;
             }
