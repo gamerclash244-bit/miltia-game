@@ -1,120 +1,32 @@
-class NPC {
-  constructor(id, name, color) {
-    this.id = id;
-    this.name = name;
-    this.color = color;
-    this.x = Math.random() * 8000 + 500;
-    this.y = 2000;
-    this.width = 40;
-    this.height = 40;
-    this.dx = 0;
-    this.dy = 0;
-    this.health = 100;
-    this.maxHealth = 100;
-    this.aimAngle = 0;
-    this.weapon = 'rifle';
-    
-    this.targetPlayer = null;
-    this.state = 'idle'; 
-    this.decisionTimer = 0;
-    this.moveDir = Math.random() > 0.5 ? 1 : -1;
-    this.isJumping = false;
-    this.lastShotTime = 0;
-  }
+// === NPC UPDATE LOGIC ===
+      for (let i = npcs.length - 1; i >= 0; i--) {
+        let npc = npcs[i];
+        
+        // SAFETY CHECK: Prevents the game from freezing if data is broken
+        if (!npc || typeof npc.update !== 'function') continue; 
 
-  update(platforms, players, myPlayer, dt, networkBullets) {
-    if (this.health <= 0) return;
+        npc.update(map, networkPlayers, myPlayer, 16, networkBullets);
+        
+        // Check if player bullets hit NPC
+        bullets.forEach((b, bIdx) => {
+            if (b.x > npc.x && b.x < npc.x + 40 && b.y > npc.y && b.y < npc.y + 40) {
+                let dmg = WEAPONS[b.weapon || 'rifle'].damage;
+                npc.health -= dmg;
+                bullets.splice(bIdx, 1);
+                
+                damageNumbers.push({ x: npc.x + 20, y: npc.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
 
-    const now = Date.now();
-    this.decisionTimer -= dt; 
+                if (npc.health <= 0) {
+                    myPlayer.kills++;
+                    myPlayer.killStreak++;
+                    checkStreak(myPlayer.killStreak);
+                    killFeed.push({ text: `☠ YOU → ${npc.name}`, timer: 5.0, color: '#ff4757' });
+                    spawnCoins(npc.x + 20, npc.y + 20);
+                }
+            }
+        });
 
-    let closest = myPlayer;
-    let minDist = Math.hypot(myPlayer.x - this.x, myPlayer.y - this.y);
-    
-    for (let id in players) {
-        let p = players[id];
-        if (p.health <= 0) continue;
-        let d = Math.hypot(p.x - this.x, p.y - this.y);
-        if (d < minDist) { minDist = d; closest = p; }
-    }
-    
-    this.targetPlayer = (minDist < 1200) ? closest : null;
-
-    if (this.decisionTimer <= 0) {
-      this.decisionTimer = 1000 + Math.random() * 2000;
-      if (this.targetPlayer) {
-        this.state = 'combat';
-        this.moveDir = this.targetPlayer.x > this.x ? 1 : -1;
-      } else {
-        this.state = 'patrol';
-        if (Math.random() > 0.7) this.moveDir *= -1;
-      }
-    }
-
-    let speed = 4;
-    this.x += this.moveDir * speed;
-
-    this.dy += 0.35; 
-    
-    if ((this.targetPlayer && this.targetPlayer.y < this.y - 100) || this.y > 2300) {
-      this.dy -= 0.8; 
-      this.isJumping = true;
-    } else {
-      this.isJumping = false;
-    }
-    this.y += this.dy;
-
-    platforms.forEach(obj => {
-      if (this.x < obj.x + obj.w && this.x + this.width > obj.x && 
-          this.y < obj.y + obj.h && this.y + this.height > obj.y) {
-        if (this.dy > 0) {
-          this.y = obj.y - this.height;
-          this.dy = 0;
-        } else if (this.dy < 0) {
-          this.y = obj.y + obj.h;
-          this.dy = 0;
+        if (npc.health <= 0) {
+            npcs.splice(i, 1);
         }
       }
-    });
-
-    if (this.targetPlayer && this.health > 0) {
-      let targetX = this.targetPlayer.x + 20;
-      let targetY = this.targetPlayer.y + 20;
-      
-      let desiredAngle = Math.atan2(targetY - (this.y + 20), targetX - (this.x + 20));
-      this.aimAngle += (desiredAngle - this.aimAngle) * 0.1;
-
-      if (now - this.lastShotTime > 400 + Math.random() * 600) {
-        this.shoot(now, networkBullets);
-      }
-    }
-  }
-
-  shoot(now, networkBullets) {
-    this.lastShotTime = now;
-    const bvx = Math.cos(this.aimAngle) * 14;
-    const bvy = Math.sin(this.aimAngle) * 14;
-    
-    networkBullets.push({
-      x: this.x + 20,
-      y: this.y + 20,
-      vx: bvx,
-      vy: bvy,
-      radius: 4,
-      color: '#ffffff'
-    });
-  }
-}
-
-const npcNames = ["Alpha_Unit", "Ghost_Z", "Rogue_01", "Shadow_Byte", "Viper", "Keralite_Pro", "Bot_Nizal", "Cyber_Rex", "Void_Walker", "Neon_Soul"];
-const npcColors = ["#ff4757", "#2ecc71", "#3498db", "#f1c40f", "#a29bfe", "#fd79a8"];
-
-function spawnNPCs(count) {
-  let list = [];
-  for (let i = 0; i < count; i++) {
-    let name = npcNames[Math.floor(Math.random() * npcNames.length)] + "_" + Math.floor(Math.random() * 99);
-    let color = npcColors[Math.floor(Math.random() * npcColors.length)];
-    list.push(new NPC("npc_" + i, name, color));
-  }
-  return list;
-}
