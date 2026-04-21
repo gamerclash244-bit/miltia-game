@@ -148,7 +148,7 @@
     }
 
     function initNetwork() {
-      // ⚠️ CHANGE THIS URL TO YOUR LAPTOP'S IP ADDRESS (e.g., http://192.168.1.5:3000) FOR OFFLINE LAN PLAY
+      // ⚠️ CHANGE THIS TO YOUR LOCAL IP FOR OFFLINE LAN (e.g., http://192.168.1.5:3000)
       const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
       
       const loginStatus = document.getElementById('loginStatus');
@@ -384,6 +384,7 @@
         
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
+        // Does this hit ME?
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
           destroyed = true;
           if (myPlayer.invincibleTimer <= t && myPlayer.health > 0) {
@@ -394,6 +395,7 @@
           }
         }
 
+        // Does this hit OTHER NPCs? (Bots killing Bots)
         if (!destroyed) {
           for (let n = 0; n < npcs.length; n++) {
             let npc = npcs[n];
@@ -417,6 +419,7 @@
             }
           }
         }
+
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) networkBullets.splice(i, 1);
       }
 
@@ -501,4 +504,21 @@
 
       const mmW = isMob ? 120 : 180, mmH = isMob ? 32 : 48; const mmX = canvas.width - mmW - (isMob ? 10 : 22); const mmY = isMob ? 10 : 22; const mm = { x: mmX, y: mmY, w: mmW, h: mmH };
       ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(mm.x-2, mm.y-2, mm.w+4, mm.h+4); ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(mm.x, mm.y, mm.w, mm.h);
-      const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,25
+      const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      for (let obj of map) { if (obj.type==='plat'||obj.type==='floor') ctx.fillRect(mm.x+obj.x*sx, mm.y+obj.y*sy, Math.max(1.5,obj.w*sx), 1); }
+      for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health<=0) continue; ctx.fillStyle = np.color; ctx.fillRect(mm.x + np.x*sx - 2, mm.y + np.y*sy - 2, 4, 4); }
+      for (let i = 0; i < npcs.length; i++) { if (npcs[i].health <= 0) continue; ctx.fillStyle = npcs[i].color; ctx.fillRect(mm.x + npcs[i].x*sx - 2, mm.y + npcs[i].y*sy - 2, 4, 4); }
+      ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
+      ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
+
+      ctx.save(); ctx.font = `${isMob?10:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right'; let kfY = mm.y + mm.h + 20; 
+      for (let kf of killFeed) { ctx.globalAlpha = Math.min(1, kf.timer); let w = ctx.measureText(kf.text).width + 20; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width - w - 12, kfY - 16, w, 20); ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 12, kfY); kfY += 24; }
+      ctx.restore();
+
+      drawJoystick(joyLeft, '#3498db'); drawJoystick(joyRight, '#e74c3c');
+    }
+
+    function gameLoop() { if (isPlaying) { update(); draw(); requestAnimationFrame(gameLoop); } }
+  </script>
+</body>
+</html>
