@@ -187,7 +187,7 @@
         socket.on('kicked', (data) => { isPlaying = false; document.exitPointerLock(); document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.'; document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none'; });
         socket.on('leaderboardUpdate', (topPlayers) => { let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak}</td><td style="text-align:right;">${p.totalKills}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
         
-        // ── LISTEN FOR SERVER BOTS ──
+        // ── SERVER BOTS SYNC ──
         socket.on('npcSync', (serverBots) => {
             if(isPublicMode) npcs = serverBots; 
         });
@@ -196,10 +196,11 @@
             if (data.killerId === socket.id) {
                 myPlayer.kills++; myPlayer.killStreak++; checkStreak(myPlayer.killStreak);
                 socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
+                spawnCoins(data.x + 20, data.y + 20); // Spawns coins at bot death location
             }
             killFeed.push({ text: `🤖 ${data.killerName} → ${data.botName}`, timer: 5.0, color: (data.killerId === socket.id ? '#ff4757' : '#bdc3c7') });
         });
-        // ────────────────────────────
+        // ──────────────────────
 
       } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
     }
@@ -238,7 +239,7 @@
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
-      if (!isPublicMode) npcs = []; // Clear NPCs if in a private room
+      if (!isPublicMode) npcs = []; // Ensure no local bots exist
       
       buildMap(); initParticles(); gameLoop();
     }
@@ -335,7 +336,7 @@
       if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
       if (keys.fire && t - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) { if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = t; if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = t; } } }
 
-      // ── BOTS HIT DETECTION ──
+      // ── DETECT IF MY BULLETS HIT A BOT ──
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
@@ -357,6 +358,7 @@
                     if (b.x>npc.x && b.x<npc.x+40 && b.y>npc.y && b.y<npc.y+40) {
                         destroyed = true;
                         let dmg = WEAPONS[b.weapon || 'rifle'].damage;
+                        // Tell server we damaged it!
                         socket.emit('damageBot', { botId: npc.id, damage: dmg });
                         damageNumbers.push({ x: npc.x + 20, y: npc.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
                         break;
@@ -369,6 +371,7 @@
 
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
+        
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
@@ -426,13 +429,16 @@
         if (np.shield > 0) { ctx.save(); ctx.globalAlpha=0.4; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(np.x-3,np.y-3,46,46); ctx.restore(); }
       }
 
-      npcs.forEach(npc => {
-        if (npc.health <= 0) return;
-        ctx.fillStyle = npc.color; ctx.fillRect(npc.x, npc.y, 40, 40);
-        ctx.fillStyle='red'; ctx.fillRect(npc.x, npc.y-12, 42, 5); ctx.fillStyle='#2ecc71'; ctx.fillRect(npc.x, npc.y-12, 42*(npc.health/100), 5);
-        ctx.save(); ctx.translate(npc.x + 20, npc.y + 20); ctx.rotate(npc.aimAngle); ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(35, 0); ctx.stroke(); ctx.restore();
-        ctx.fillStyle = 'white'; ctx.font = 'bold 12px "Rajdhani", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(npc.name, npc.x + 20, npc.y - 16);
-      });
+      // ── DRAW SERVER BOTS ──
+      if (isPublicMode) {
+          npcs.forEach(npc => {
+            if (npc.health <= 0) return;
+            ctx.fillStyle = npc.color; ctx.fillRect(npc.x, npc.y, 40, 40);
+            ctx.fillStyle='red'; ctx.fillRect(npc.x, npc.y-12, 42, 5); ctx.fillStyle='#2ecc71'; ctx.fillRect(npc.x, npc.y-12, 42*(npc.health/100), 5);
+            ctx.save(); ctx.translate(npc.x + 20, npc.y + 20); ctx.rotate(npc.aimAngle); ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(35, 0); ctx.stroke(); ctx.restore();
+            ctx.fillStyle = 'white'; ctx.font = 'bold 12px "Rajdhani", sans-serif'; ctx.textAlign = 'center'; ctx.fillText(npc.name, npc.x + 20, npc.y - 16);
+          });
+      }
 
       const cx = myPlayer.x + myPlayer.width/2, cy = myPlayer.y + myPlayer.height/2; const wDef = WEAPONS[myPlayer.weapon]; let invincible = myPlayer.invincibleTimer > Date.now();
       ctx.save(); ctx.beginPath(); ctx.setLineDash([10, 15]); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(myPlayer.aimAngle) * 3000, cy + Math.sin(myPlayer.aimAngle) * 3000); ctx.strokeStyle = myPlayer.weapon === 'sniper' ? 'rgba(162, 155, 254, 0.5)' : 'rgba(255, 255, 255, 0.25)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
@@ -477,7 +483,7 @@
       const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,255,0.18)';
       for (let obj of map) { if (obj.type==='plat'||obj.type==='floor') ctx.fillRect(mm.x+obj.x*sx, mm.y+obj.y*sy, Math.max(1.5,obj.w*sx), 1); }
       for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health<=0) continue; ctx.fillStyle = np.color; ctx.fillRect(mm.x + np.x*sx - 2, mm.y + np.y*sy - 2, 4, 4); }
-      for (let i = 0; i < npcs.length; i++) { if (npcs[i].health <= 0) continue; ctx.fillStyle = npcs[i].color; ctx.fillRect(mm.x + npcs[i].x*sx - 2, mm.y + npcs[i].y*sy - 2, 4, 4); }
+      if (isPublicMode) { for (let i = 0; i < npcs.length; i++) { if (npcs[i].health <= 0) continue; ctx.fillStyle = npcs[i].color; ctx.fillRect(mm.x + npcs[i].x*sx - 2, mm.y + npcs[i].y*sy - 2, 4, 4); } }
       ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
       ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
 
