@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Mobile & Map Fixes</title>
+  <title>BaylerBay Ops - Pointer Lock & Zoom</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
@@ -24,8 +24,8 @@
       touch-action: none;
     }
 
-    /* CURSOR FIX: Cursor completely invisible for pure PC aiming */
-    #gameCanvas { display: none; cursor: none; }
+    /* CURSOR: Crosshair when unlocked, completely hidden when locked */
+    #gameCanvas { display: none; cursor: crosshair; }
 
     /* ── MENU BASE ── */
     .menu-screen {
@@ -224,15 +224,15 @@
     /* ── DEATH SCREEN DETAILS ── */
     #finalKillsText { font-size: 2rem; margin-bottom: 32px; color: var(--gold); letter-spacing: 3px; }
 
-    /* ── MOBILE UI FIXES: No Overlap ── */
+    /* ── MOBILE UI FIXES ── */
     @media (max-width: 800px) {
       .menu-screen {
         justify-content: flex-start;
-        padding-top: 8vh;
+        padding-top: 5vh;
         height: 100vh;
         overflow: hidden;
       }
-      h1 { font-size: 2.6rem; letter-spacing: 3px; margin-bottom: 5px; }
+      h1 { font-size: 2.4rem; letter-spacing: 3px; margin-bottom: 5px; }
       .subtitle { margin-bottom: 15px; font-size: 0.8rem; }
       button.ui-btn { padding: 12px 20px; font-size: 1.1rem; width: 260px; margin: 5px; }
       input[type="text"], input[type="password"] { padding: 12px 16px; font-size: 1.1rem; width: 260px; margin-bottom: 5px;}
@@ -240,12 +240,11 @@
       #leaderboardPanel {
         position: absolute;
         right: auto; top: auto;
-        bottom: 15px; left: 50%;
+        bottom: 20px; left: 50%;
         transform: translateX(-50%);
         margin: 0; width: 92%; max-width: 360px;
         max-height: 35vh; overflow-y: auto;
         padding: 15px;
-        z-index: 50;
       }
     }
   </style>
@@ -288,7 +287,7 @@
 
   <div id="mainMenu" class="menu-screen" style="display:none;">
     <h1>BaylerBay Ops</h1>
-    <p class="subtitle">PC: WASD + MOUSE &nbsp;|&nbsp; MOBILE: TOUCH JOYSTICKS</p>
+    <p class="subtitle">PC: CLICK TO LOCK AIM &nbsp;|&nbsp; MOBILE: TOUCH JOYSTICKS</p>
     <button id="playBtn" class="ui-btn">Deploy Online</button>
     <button id="settingsBtn" class="ui-btn secondary">Armor Config</button>
   </div>
@@ -324,15 +323,15 @@
     //  TOUCH DETECTION
     // ══════════════════════════════════════════
     let isTouchMode = false;
-    window.addEventListener('touchstart', () => { isTouchMode = true; }, { passive: true });
+    window.addEventListener('touchstart', () => { isTouchMode = true; }, { passive: true, once: true });
 
     // ══════════════════════════════════════════
-    //  WEAPONS SYSTEM
+    //  WEAPONS SYSTEM (WITH ZOOM)
     // ══════════════════════════════════════════
     const WEAPONS = {
-      rifle:   { damage: 15, fireRate: 150,  ammo: 15, speed: 16, spread: 0,    pellets: 1, reload: 1500, bulletColor: '#f1c40f', barrelColor: '#bdc3c7', barrelLen: 38, barrelH: 10, name: 'RIFLE',   crateColor: null },
-      shotgun: { damage: 8,  fireRate: 700,  ammo: 8,  speed: 13, spread: 0.22, pellets: 5, reload: 2000, bulletColor: '#e67e22', barrelColor: '#e67e22', barrelLen: 30, barrelH: 14, name: 'SHOTGUN', crateColor: '#e67e22' },
-      sniper:  { damage: 65, fireRate: 1200, ammo: 5,  speed: 26, spread: 0,    pellets: 1, reload: 2500, bulletColor: '#a29bfe', barrelColor: '#a29bfe', barrelLen: 54, barrelH: 6,  name: 'SNIPER',  crateColor: '#a29bfe' },
+      rifle:   { damage: 15, fireRate: 150,  ammo: 15, speed: 16, spread: 0,    pellets: 1, reload: 1500, bulletColor: '#f1c40f', barrelColor: '#bdc3c7', barrelLen: 38, barrelH: 10, name: 'RIFLE',   crateColor: null,      zoom: 1.0 },
+      shotgun: { damage: 8,  fireRate: 700,  ammo: 8,  speed: 13, spread: 0.22, pellets: 5, reload: 2000, bulletColor: '#e67e22', barrelColor: '#e67e22', barrelLen: 30, barrelH: 14, name: 'SHOTGUN', crateColor: '#e67e22', zoom: 0.85 },
+      sniper:  { damage: 65, fireRate: 1200, ammo: 5,  speed: 26, spread: 0,    pellets: 1, reload: 2500, bulletColor: '#a29bfe', barrelColor: '#a29bfe', barrelLen: 54, barrelH: 6,  name: 'SNIPER',  crateColor: '#a29bfe', zoom: 1.4 },
     };
 
     // ══════════════════════════════════════════
@@ -347,22 +346,28 @@
     const colorBtns = document.querySelectorAll('.color-btn');
 
     // ══════════════════════════════════════════
-    //  NETWORK
+    //  NETWORK & CAMERA
     // ══════════════════════════════════════════
     let socket = null; let networkPlayers = {}; let networkBullets = []; let isOnline = false; let lastSyncTime = 0;
-
-    // ══════════════════════════════════════════
-    //  WORLD
-    // ══════════════════════════════════════════
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = [];
+    
+    // Smooth camera zoom
+    let currentZoom = 1.0;
 
     // ══════════════════════════════════════════
-    //  INPUT
+    //  INPUT & POINTER LOCK
     // ══════════════════════════════════════════
     const joyLeft = { active: false, startX: 0, startY: 0, dx: 0, dy: 0, touchId: null };
     const joyRight = { active: false, startX: 0, startY: 0, dx: 0, dy: 0, touchId: null };
-    let mouseX = canvas.width / 2; let mouseY = canvas.height / 2;
+    let mouseX = window.innerWidth / 2; let mouseY = window.innerHeight / 2;
+
+    // POINTER LOCK ACTIVATION (Only when playing on PC)
+    canvas.addEventListener('click', () => {
+      if (isPlaying && !isTouchMode && document.pointerLockElement !== canvas) {
+        canvas.requestPointerLock();
+      }
+    });
 
     // ══════════════════════════════════════════
     //  BIOMES
@@ -404,6 +409,7 @@
     let weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
 
     function returnToLogin() {
+      document.exitPointerLock();
       document.getElementById('kickedOverlay').classList.remove('visible');
       canvas.style.display = 'none';
       isPlaying = false;
@@ -447,7 +453,7 @@
             np.targetX = playerInfo.player.x;
             np.targetY = playerInfo.player.y;
             np.aimAngle = playerInfo.player.aimAngle;
-            np.health = playerInfo.player.health; // for rendering UI bar
+            np.health = playerInfo.player.health;
             np.weapon = playerInfo.player.weapon;
 
             if (playerInfo.player.health === 100) {
@@ -469,6 +475,7 @@
 
         socket.on('kicked', (data) => {
           isPlaying = false;
+          document.exitPointerLock();
           const msg = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.';
           document.getElementById('kickedMsg').innerText = msg;
           document.getElementById('kickedOverlay').classList.add('visible');
@@ -533,20 +540,18 @@
       });
     });
     saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
-    
-    // FULLSCREEN FIX: Will request Fullscreen for ALL devices when clicking Deploy
     playBtn.addEventListener('click', () => { 
         menus.main.style.display = 'none'; 
         leaderboardPanel.style.display = 'none'; 
         canvas.style.display = 'block'; 
-        if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen().catch(() => {}); 
-        }
         resetRun(); 
+        
+        // Auto Fullscreen & Pointer Lock
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); 
+        if (!isTouchMode) canvas.requestPointerLock();
     });
-    
     backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
-    respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
+    respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if(!isTouchMode) canvas.requestPointerLock(); });
 
     function resetRun() {
       isPlaying = true;
@@ -564,11 +569,16 @@
       biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5;
       joyLeft.active = false; joyRight.active = false;
       keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
+      
+      // Center Virtual Mouse
+      mouseX = canvas.width / 2; mouseY = canvas.height / 2;
+      
       buildMap(); initParticles(); gameLoop();
     }
 
     function killPlayer() {
       isPlaying = false; myPlayer.health = 0;
+      document.exitPointerLock();
       if (isOnline && socket && socket.connected) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0, weapon: myPlayer.weapon });
         socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
@@ -618,6 +628,7 @@
 
     function mulberry32(a) { return function() { var t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
+    // COLLISION CHECK TO PREVENT PLATFORM OVERLAP
     function checkOverlap(nx, ny, nw, nh) {
       const PAD = 40; 
       for (let obj of map) {
@@ -649,6 +660,7 @@
       powerups = [];
       let rand = mulberry32(12345);
 
+      // TIER 0: Low ground
       let cx = 200;
       while (cx < worldWidth - 400) {
         let pw = 130 + rand() * 270, py = worldHeight - 130 - rand() * 520;
@@ -665,6 +677,7 @@
         cx += pw + 40 + rand() * 140;
       }
 
+      // TIER 1: Mid-low
       cx = 350;
       while (cx < worldWidth - 600) {
         let pw = 110 + rand() * 200, py = worldHeight - 650 - rand() * 380;
@@ -687,6 +700,7 @@
         cx += pw + 80 + rand() * 240;
       }
 
+      // TIER 2: Mid-high
       cx = 500;
       while (cx < worldWidth - 800) {
         let pw = 90 + rand() * 170, py = worldHeight - 1100 - rand() * 480;
@@ -705,6 +719,7 @@
         cx += pw + 120 + rand() * 320;
       }
 
+      // TIER 3: High ceiling
       cx = 700;
       while (cx < worldWidth - 1000) {
         let pw = 120 + rand() * 280, py = 120 + rand() * 420;
@@ -727,6 +742,7 @@
         cx += pw + 220 + rand() * 500;
       }
 
+      // VERTICAL TOWERS 
       let tx = 600;
       while (tx < worldWidth - 500) {
         let tH = 200 + rand() * 600, tY = worldHeight - 700 - rand() * 600, tW = 20 + rand() * 15;
@@ -741,6 +757,7 @@
         tx += 500 + rand() * 900;
       }
 
+      // FLOATING ISLANDS
       let fx = 1000;
       while (fx < worldWidth - 1200) {
         let baseY = 400 + rand() * 800, clusterX = fx;
@@ -756,18 +773,36 @@
       }
     }
 
+    // ══════════════════════════════════════════
+    //  INPUT & POINTER LOCK LOGIC
+    // ══════════════════════════════════════════
     window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; });
     window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=false; if (k==='d'||k==='arrowright') keys.d=false; if (k==='w'||k==='arrowup'||k===' ') keys.w=false; });
-    canvas.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+    
+    // MOUSE MOVEMENT (Handles Pointer Lock correctly)
+    canvas.addEventListener('mousemove', (e) => { 
+        if (document.pointerLockElement === canvas) {
+            mouseX += e.movementX;
+            mouseY += e.movementY;
+            // Clamp virtual mouse to screen bounds
+            mouseX = Math.max(0, Math.min(canvas.width, mouseX));
+            mouseY = Math.max(0, Math.min(canvas.height, mouseY));
+        } else {
+            mouseX = e.clientX; 
+            mouseY = e.clientY; 
+        }
+    });
+
     canvas.addEventListener('mousedown', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = true; });
     canvas.addEventListener('mouseup', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = false; });
     
+    // TOUCH JOYS
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault(); if (!isPlaying) return;
       for (let i = 0; i < e.changedTouches.length; i++) {
         let t = e.changedTouches[i];
         if (t.clientX < canvas.width / 2) { joyLeft.active=true; joyLeft.touchId=t.identifier; joyLeft.startX=t.clientX; joyLeft.startY=t.clientY; joyLeft.dx=0; joyLeft.dy=0; }
-        else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; keys.fire=true;}
+        else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; keys.fire=true; }
       }
     }, {passive: false});
     canvas.addEventListener('touchmove', (e) => {
@@ -803,13 +838,17 @@
     function update() {
       let t = Date.now();
 
+      // CAMERA ZOOM LOGIC
+      let targetZoom = WEAPONS[myPlayer.weapon].zoom;
+      currentZoom += (targetZoom - currentZoom) * 0.05;
+
       // 30 SECOND WEAPON TIMER
       if (myPlayer.weapon !== 'rifle' && t > myPlayer.weaponExpire) {
-          myPlayer.weapon = 'rifle';
-          myPlayer.ammo = WEAPONS['rifle'].ammo; 
-          myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
-          myPlayer.isReloading = false;
-          weaponPickupAnnounce = { text: 'WEAPON EXPIRED', opacity: 2.5, color: '#fff' };
+        myPlayer.weapon = 'rifle';
+        myPlayer.ammo = WEAPONS['rifle'].ammo; 
+        myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
+        myPlayer.isReloading = false;
+        weaponPickupAnnounce = { text: `WEAPON EXPIRED`, opacity: 2.5, color: '#fff' };
       }
 
       for (let obj of map) {
@@ -818,12 +857,15 @@
         if (obj.moveY) obj.y = obj.moveBaseY + Math.sin(t * obj.moveSpeedY + obj.movePhaseY) * obj.moveRangeY;
       }
 
-      // TRUE PC VS MOBILE INPUT
+      // AIM CALCULATION (Account for dynamic Zoom)
+      let effW = canvas.width / currentZoom;
+      let effH = canvas.height / currentZoom;
+
       if (isTouchMode) {
         if (joyLeft.active) { keys.a = joyLeft.dx < -15; keys.d = joyLeft.dx > 15; keys.w = joyLeft.dy < -15; }
         if (joyRight.active) { myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); }
       } else {
-        const wx = mouseX + camera.x, wy = mouseY + camera.y; 
+        const wx = (mouseX / currentZoom) + camera.x, wy = (mouseY / currentZoom) + camera.y; 
         myPlayer.aimAngle = Math.atan2(wy - (myPlayer.y + myPlayer.height/2), wx - (myPlayer.x + myPlayer.width/2));
       }
 
@@ -873,8 +915,8 @@
           else if (p.type === 'shotgun' || p.type === 'sniper') {
             myPlayer.weapon = p.type;
             const w = WEAPONS[p.type]; myPlayer.ammo = w.ammo; myPlayer.maxAmmo = w.ammo; myPlayer.isReloading = false;
-            myPlayer.weaponExpire = t + 30000; // 30 SECOND TIMER SET
-            weaponPickupAnnounce = { text: `⚡ ${w.name} EQUIPPED (30s)`, opacity: 3.5, color: w.crateColor };
+            myPlayer.weaponExpire = t + 30000; 
+            weaponPickupAnnounce = { text: `⚡ ${w.name} EQUIPPED`, opacity: 3.5, color: w.crateColor };
           }
           powerups.splice(i, 1);
         }
@@ -941,8 +983,8 @@
       if (weaponPickupAnnounce.opacity > 0) weaponPickupAnnounce.opacity -= 0.018;
       if (screenShake > 0) screenShake = Math.max(0, screenShake - 0.04);
 
-      camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width/2 - canvas.width/2, worldWidth - canvas.width));
-      camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height/2 - canvas.height/2, worldHeight - canvas.height));
+      camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width/2 - effW/2, worldWidth - effW));
+      camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height/2 - effH/2, worldHeight - effH));
     }
 
     function drawHUDBar(x, y, w, h, fillRatio, bgColor, fillColor, label, labelColor, fSize) {
@@ -963,12 +1005,20 @@
     function draw() {
       let t = Date.now();
       ctx.fillStyle = `rgb(${Math.round(currentSky[0])},${Math.round(currentSky[1])},${Math.round(currentSky[2])})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // HUD-Level Particles
       ctx.fillStyle = targetBiome.pColor; for (let p of particles) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); }
 
       let shakeX = 0, shakeY = 0;
       if (screenShake > 0) { shakeX = (Math.random()-0.5)*screenShake*14; shakeY = (Math.random()-0.5)*screenShake*14; }
-      ctx.save(); ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
-      const viewLeft = camera.x - 200; const viewRight = camera.x + canvas.width + 200;
+      
+      ctx.save(); 
+      // Apply Camera Zoom & Translation
+      ctx.scale(currentZoom, currentZoom);
+      ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
+      
+      let effW = canvas.width / currentZoom;
+      const viewLeft = camera.x - 200; const viewRight = camera.x + effW + 200;
 
       for (let p of powerups) {
         if (p.x > viewRight || p.x+p.w < viewLeft) continue;
@@ -1005,6 +1055,18 @@
 
       const cx = myPlayer.x + myPlayer.width/2, cy = myPlayer.y + myPlayer.height/2; const wDef = WEAPONS[myPlayer.weapon];
       let invincible = myPlayer.invincibleTimer > Date.now();
+      
+      // ── DOTTED AIM LASER ──
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([10, 15]);
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(myPlayer.aimAngle) * 3000, cy + Math.sin(myPlayer.aimAngle) * 3000);
+      ctx.strokeStyle = myPlayer.weapon === 'sniper' ? 'rgba(162, 155, 254, 0.5)' : 'rgba(255, 255, 255, 0.25)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.restore();
+
       ctx.save(); if (invincible && Math.floor(t / 80) % 2 === 0) ctx.globalAlpha = 0.35;
       ctx.save(); ctx.translate(cx,cy); ctx.rotate(myPlayer.aimAngle); ctx.fillStyle = wDef.barrelColor; ctx.fillRect(0, -(wDef.barrelH/2), wDef.barrelLen, wDef.barrelH); ctx.restore();
       ctx.fillStyle = myPlayer.color; ctx.fillRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth=1; ctx.strokeRect(myPlayer.x, myPlayer.y, myPlayer.width, myPlayer.height);
@@ -1019,9 +1081,11 @@
 
       for (let dn of damageNumbers) { ctx.save(); ctx.globalAlpha = Math.min(1, dn.opacity); ctx.fillStyle = dn.color; ctx.font = `bold ${dn.size || 16}px "Rajdhani", sans-serif`; ctx.textAlign = 'center'; ctx.shadowColor = dn.color; ctx.shadowBlur = 8; ctx.fillText(dn.value, dn.x, dn.y); ctx.restore(); }
       for (let c of coinParticles) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, c.opacity)); ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore(); }
+      
+      // End Camera Zoom
       ctx.restore(); 
 
-      // ── HUD (RESPONSIVE FOR MOBILE) ──
+      // ── HUD (RESPONSIVE) ──
       const isMob = canvas.width < 768;
       const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22;
       const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8);
@@ -1030,7 +1094,7 @@
       drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
       if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
       const jY = myPlayer.shield > 0 ? y3 : y2; const aY = jY + gap, kY = aY + gap, wY = kY + gap;
-      let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > Date.now();
+      let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
       drawHUDBar(HX, jY, HW, HH, hasUnlimitedJetpack ? 1 : myPlayer.fuel/myPlayer.maxFuel, '#002020', hasUnlimitedJetpack?'#00cec9':'#3498db', hasUnlimitedJetpack?'JETPACK ∞':'JETPACK', 'white', fSize);
       
       ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, aY, HW+4, HH+4); ctx.fillStyle=(myPlayer.ammo===0)?'rgba(80,0,0,0.8)':'rgba(255,255,255,0.06)'; ctx.fillRect(HX, aY+2, HW, HH); ctx.fillStyle=(myPlayer.ammo===0)?'#e74c3c':'white'; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(myPlayer.isReloading ? 'RELOADING...' : `AMMO  ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, HX+6, aY+HH-3);
@@ -1042,7 +1106,7 @@
       }
       const wCol = wDef.crateColor || '#bdc3c7';
       ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, wY, HW+4, HH+4); ctx.fillStyle = wCol + '22'; ctx.fillRect(HX, wY+2, HW, HH); ctx.strokeStyle = wCol; ctx.lineWidth=1; ctx.strokeRect(HX, wY+2, HW, HH); ctx.fillStyle = wCol; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚙ ${wDef.name}${wTimeStr}`, HX+6, wY+HH-3);
-      if (myPlayer.speedBoostTimer > Date.now()) { let remaining = Math.ceil((myPlayer.speedBoostTimer - Date.now()) / 1000); ctx.fillStyle='#fdcb6e'; ctx.font=`bold ${fSize-2}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, wY+HH+(isMob?14:18)); }
+      if (myPlayer.speedBoostTimer > t) { let remaining = Math.ceil((myPlayer.speedBoostTimer - t) / 1000); ctx.fillStyle='#fdcb6e'; ctx.font=`bold ${fSize-2}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, wY+HH+(isMob?14:18)); }
       if (invincible) { ctx.save(); ctx.globalAlpha = 0.6 + Math.sin(t * 0.02) * 0.4; ctx.fillStyle = '#55efc4'; ctx.font = `bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText('★ INVINCIBLE', HX+6, wY+HH+(isMob?28:36)); ctx.restore(); }
 
       if (biomePopupOpacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(biomePopupOpacity, 1.0); ctx.textAlign='center'; ctx.fillStyle='white'; ctx.font=`bold ${isMob?32:52}px "Rajdhani",sans-serif`; ctx.fillText(biomePopupName, canvas.width/2, canvas.height*0.25); ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.fillRect(canvas.width/2 - (isMob?120:180), canvas.height*0.25+14, isMob?240:360, 3); ctx.restore(); }
