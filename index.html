@@ -66,6 +66,7 @@
     <p id="loginStatus" style="color: #f1c40f;">Connecting to server...</p>
     <div class="setting-group">
       <input type="text" id="loginName" placeholder="CALLSIGN" maxlength="12">
+      <input type="password" id="loginPin" placeholder="SECRET PIN" maxlength="8">
     </div>
     <button id="authBtn" class="ui-btn" style="display: none;">Verify &amp; Link</button>
   </div>
@@ -153,6 +154,16 @@
     const leaderboardPanel = document.getElementById('leaderboardPanel');
     const authBtn = document.getElementById('authBtn'); 
     
+    const onlineBtn = document.getElementById('onlineBtn');
+    const roomMenuBtn = document.getElementById('roomMenuBtn');
+    const settingsBtn = document.getElementById('settingsBtn'); 
+    
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const backFromRoomBtn = document.getElementById('backFromRoomBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const respawnBtn = document.getElementById('respawnBtn'); const backMenuBtn = document.getElementById('backMenuBtn');
+    const colorBtns = document.querySelectorAll('.color-btn');
+
     let socket = null; let networkPlayers = {}; let networkBullets = []; let npcs = []; let isOnline = false; let lastSyncTime = 0;
     let isPublicMode = true; 
     let currentRoomCode = "";
@@ -241,16 +252,25 @@
 
     authBtn.addEventListener('click', () => {
       const name = document.getElementById('loginName').value.trim(); 
+      // RESTORED: Getting the PIN value
+      const pin = document.getElementById('loginPin').value.trim(); 
       const status = document.getElementById('loginStatus');
-      if (!name) { status.innerText = "Callsign required."; status.style.color = "#e74c3c"; return; }
+      
+      if (!name || !pin) { status.innerText = "Callsign and PIN required."; status.style.color = "#e74c3c"; return; }
+      
       status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f";
-      socket.emit('login', { name }, (res) => { 
+      
+      // RESTORED: Sending PIN to server for DB validation
+      socket.emit('login', { name, pin }, (res) => { 
         if (res.success) {
           myPlayer.name = name; 
           menus.login.style.display = 'none'; 
           menus.main.style.display = 'flex'; 
           leaderboardPanel.style.display = 'none';
-        } 
+        } else {
+          status.innerText = res.message || "Authentication failed."; 
+          status.style.color = "#e74c3c";
+        }
       });
     });
 
@@ -275,7 +295,6 @@
     // Room Select Buttons
     document.getElementById('createRoomBtn').addEventListener('click', () => {
         isPublicMode = false;
-        // Generate random 5-letter room code
         currentRoomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
         socket.emit('joinGame', { room: currentRoomCode, color: myPlayer.color }, (res) => {
             networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
@@ -609,10 +628,8 @@
       
       ctx.restore(); 
       
-      // HUD UI
       const isMob = canvas.width < 768; const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22; const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8); const y1 = isMob ? 10 : 22, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
       
-      // NEW: Show Room Code on Screen for Private Matches
       if (!isPublicMode && currentRoomCode) {
           ctx.save();
           ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width/2 - 100, 10, 200, 30);
