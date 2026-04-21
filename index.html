@@ -154,16 +154,6 @@
     const leaderboardPanel = document.getElementById('leaderboardPanel');
     const authBtn = document.getElementById('authBtn'); 
     
-    const onlineBtn = document.getElementById('onlineBtn');
-    const roomMenuBtn = document.getElementById('roomMenuBtn');
-    const settingsBtn = document.getElementById('settingsBtn'); 
-    
-    const joinRoomBtn = document.getElementById('joinRoomBtn');
-    const backFromRoomBtn = document.getElementById('backFromRoomBtn');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-    const respawnBtn = document.getElementById('respawnBtn'); const backMenuBtn = document.getElementById('backMenuBtn');
-    const colorBtns = document.querySelectorAll('.color-btn');
-
     let socket = null; let networkPlayers = {}; let networkBullets = []; let npcs = []; let isOnline = false; let lastSyncTime = 0;
     let isPublicMode = true; 
     let currentRoomCode = "";
@@ -252,15 +242,12 @@
 
     authBtn.addEventListener('click', () => {
       const name = document.getElementById('loginName').value.trim(); 
-      // RESTORED: Getting the PIN value
       const pin = document.getElementById('loginPin').value.trim(); 
       const status = document.getElementById('loginStatus');
       
       if (!name || !pin) { status.innerText = "Callsign and PIN required."; status.style.color = "#e74c3c"; return; }
-      
       status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f";
       
-      // RESTORED: Sending PIN to server for DB validation
       socket.emit('login', { name, pin }, (res) => { 
         if (res.success) {
           myPlayer.name = name; 
@@ -274,7 +261,6 @@
       });
     });
 
-    // Main Menu Buttons
     document.getElementById('onlineBtn').addEventListener('click', () => {
       isPublicMode = true; currentRoomCode = "";
       socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, (res) => {
@@ -284,15 +270,9 @@
       });
     });
 
-    document.getElementById('roomMenuBtn').addEventListener('click', () => {
-      menus.main.style.display = 'none'; menus.roomSelect.style.display = 'flex';
-    });
-
-    document.getElementById('settingsBtn').addEventListener('click', () => { 
-        menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; 
-    });
-
-    // Room Select Buttons
+    document.getElementById('roomMenuBtn').addEventListener('click', () => { menus.main.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
+    document.getElementById('settingsBtn').addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
+    
     document.getElementById('createRoomBtn').addEventListener('click', () => {
         isPublicMode = false;
         currentRoomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
@@ -303,19 +283,10 @@
         });
     });
 
-    document.getElementById('showEnterRoomBtn').addEventListener('click', () => {
-        menus.roomSelect.style.display = 'none'; menus.enterRoom.style.display = 'flex';
-    });
+    document.getElementById('showEnterRoomBtn').addEventListener('click', () => { menus.roomSelect.style.display = 'none'; menus.enterRoom.style.display = 'flex'; });
+    document.getElementById('showLanBtn').addEventListener('click', () => { menus.roomSelect.style.display = 'none'; menus.lan.style.display = 'flex'; });
+    document.getElementById('backFromRoomSelectBtn').addEventListener('click', () => { menus.roomSelect.style.display = 'none'; menus.main.style.display = 'flex'; });
 
-    document.getElementById('showLanBtn').addEventListener('click', () => {
-        menus.roomSelect.style.display = 'none'; menus.lan.style.display = 'flex';
-    });
-
-    document.getElementById('backFromRoomSelectBtn').addEventListener('click', () => {
-        menus.roomSelect.style.display = 'none'; menus.main.style.display = 'flex';
-    });
-
-    // Enter Room Buttons
     document.getElementById('joinRoomBtn').addEventListener('click', () => {
         const rCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
         if(!rCode) return;
@@ -327,25 +298,12 @@
         });
     });
 
-    document.getElementById('backFromEnterBtn').addEventListener('click', () => {
-        menus.enterRoom.style.display = 'none'; menus.roomSelect.style.display = 'flex';
-    });
-
-    // LAN Info Button
-    document.getElementById('backFromLanBtn').addEventListener('click', () => {
-        menus.lan.style.display = 'none'; menus.roomSelect.style.display = 'flex';
-    });
-
-    // Avatar Settings
-    document.getElementById('saveSettingsBtn').addEventListener('click', () => { 
-        menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; 
-    });
+    document.getElementById('backFromEnterBtn').addEventListener('click', () => { menus.enterRoom.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
+    document.getElementById('backFromLanBtn').addEventListener('click', () => { menus.lan.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
     
-    // Death Screen
     document.getElementById('backMenuBtn').addEventListener('click', () => { 
-        menus.death.style.display = 'none'; 
-        menus.main.style.display = 'flex'; 
-        leaderboardPanel.style.display = 'none'; 
+        menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; 
     });
     
     document.getElementById('respawnBtn').addEventListener('click', () => { 
