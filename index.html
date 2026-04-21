@@ -128,7 +128,6 @@
     const leaderboardPanel = document.getElementById('leaderboardPanel');
     const authBtn = document.getElementById('authBtn'); 
     
-    // The 3 Main Menu Buttons
     const onlineBtn = document.getElementById('onlineBtn');
     const roomMenuBtn = document.getElementById('roomMenuBtn');
     const settingsBtn = document.getElementById('settingsBtn'); 
@@ -140,7 +139,7 @@
     const colorBtns = document.querySelectorAll('.color-btn');
 
     let socket = null; let networkPlayers = {}; let networkBullets = []; let npcs = []; let isOnline = false; let lastSyncTime = 0;
-    let isPublicMode = true; // Dictates if NPCs spawn or not
+    let isPublicMode = true; 
     
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = []; let currentZoom = 1.0;
@@ -178,9 +177,7 @@
     }
 
     function initNetwork() {
-      // ALWAYS ONLINE SERVER
       const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
-      
       const loginStatus = document.getElementById('loginStatus');
       if (typeof io === 'undefined') { loginStatus.innerText = "Error: Blocked by browser."; loginStatus.style.color = "#e74c3c"; return; }
       if (socket) return;
@@ -208,7 +205,7 @@
         socket.on('kicked', (data) => {
           isPlaying = false; document.exitPointerLock();
           document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.';
-          document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none';
+          document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none';
         });
         socket.on('leaderboardUpdate', (topPlayers) => {
           let html = '';
@@ -224,7 +221,6 @@
 
     initNetwork();
 
-    // Login logic
     authBtn.addEventListener('click', () => {
       const name = document.getElementById('loginName').value.trim(); 
       const status = document.getElementById('loginStatus');
@@ -236,56 +232,61 @@
           myPlayer.name = name; 
           menus.login.style.display = 'none'; 
           menus.main.style.display = 'flex'; 
+          leaderboardPanel.style.display = 'none'; // Ensure it's hidden out of the gate
         } 
       });
     });
 
-    // 1. Online Play (Spawns NPCs)
     onlineBtn.addEventListener('click', () => {
-      isPublicMode = true; // Enables NPCs
+      isPublicMode = true; 
       socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, (res) => {
           networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
-          menus.main.style.display = 'none'; leaderboardPanel.style.display = 'block'; canvas.style.display = 'block';
+          menus.main.style.display = 'none'; 
+          leaderboardPanel.style.display = 'none'; // Hides scoreboard during gameplay
+          canvas.style.display = 'block';
           resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
       });
     });
 
-    // 2. Room Play Menu Nav
     roomMenuBtn.addEventListener('click', () => {
       menus.main.style.display = 'none'; menus.room.style.display = 'flex';
     });
+    
     backFromRoomBtn.addEventListener('click', () => {
       menus.room.style.display = 'none'; menus.main.style.display = 'flex';
     });
 
-    // Join Private Room (NO NPCs)
     joinRoomBtn.addEventListener('click', () => {
       const rCode = document.getElementById('roomCodeInput').value.trim();
       if(!rCode) return;
       
-      isPublicMode = false; // Disables NPCs for private esports match
+      isPublicMode = false; 
       socket.emit('joinGame', { room: rCode, color: myPlayer.color }, (res) => {
           networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
-          menus.room.style.display = 'none'; leaderboardPanel.style.display = 'block'; canvas.style.display = 'block';
+          menus.room.style.display = 'none'; 
+          leaderboardPanel.style.display = 'none'; // Hides scoreboard during gameplay
+          canvas.style.display = 'block';
           resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
       });
     });
 
-    // 3. Avatar Nav
     settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
     saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
-    
     colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
     
-    backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
+    backMenuBtn.addEventListener('click', () => { 
+        menus.death.style.display = 'none'; 
+        menus.main.style.display = 'flex'; 
+        leaderboardPanel.style.display = 'none'; // Hides scoreboard when backing out to menu
+    });
     
     respawnBtn.addEventListener('click', () => { 
-        menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; 
+        menus.death.style.display = 'none'; 
+        leaderboardPanel.style.display = 'none'; // Hides scoreboard upon respawning
+        canvas.style.display = 'block'; 
         
-        // Rejoin logic to reset server-side position
         socket.emit('joinGame', { room: isPublicMode ? 'GLOBAL_PUBLIC' : document.getElementById('roomCodeInput').value.trim(), color: myPlayer.color }, () => {
             resetRun(); if(!isTouchMode) canvas.requestPointerLock(); 
-            leaderboardPanel.style.display = 'block';
         });
     });
 
@@ -303,11 +304,10 @@
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
-      // ONLY spawn NPCs if playing the public mode!
       if (isPublicMode) {
           npcs = spawnNPCs(6); 
       } else {
-          npcs = []; // Empty for Private Tournaments
+          npcs = []; 
       }
       
       buildMap(); initParticles(); gameLoop();
@@ -321,7 +321,9 @@
       }
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       document.getElementById('finalKillsText').innerText = `YOUR STREAK: ${myPlayer.kills}`;
-      canvas.style.display = 'none'; menus.death.style.display = 'flex'; leaderboardPanel.style.display = 'block';
+      canvas.style.display = 'none'; 
+      menus.death.style.display = 'flex'; 
+      leaderboardPanel.style.display = 'block'; // THIS is the only time the leaderboard shows up now!
     }
 
     function initParticles() { particles = []; for (let i = 0; i < maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 }); }
@@ -409,7 +411,6 @@
       if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
       if (keys.fire && t - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) { if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = t; if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = t; } } }
 
-      // --- NPC LOGIC LOOP (ONLY RUNS IN PUBLIC MODE) ---
       for (let i = npcs.length - 1; i >= 0; i--) {
         let npc = npcs[i];
         if (!npc || typeof npc.update !== 'function') continue;
@@ -435,7 +436,6 @@
         if (npc.health <= 0) npcs.splice(i, 1);
       }
 
-      // --- BULLET LOGIC ---
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
@@ -453,13 +453,11 @@
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) bullets.splice(i, 1);
       }
 
-      // --- NETWORK / NPC BULLET LOGIC ---
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
-        // Hits ME?
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
           destroyed = true;
           if (myPlayer.invincibleTimer <= t && myPlayer.health > 0) {
@@ -470,7 +468,6 @@
           }
         }
 
-        // Hits NPCs?
         if (!destroyed) {
           for (let n = 0; n < npcs.length; n++) {
             let npc = npcs[n];
