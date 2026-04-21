@@ -1170,17 +1170,31 @@
       if (streakAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, streakAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?28:44}px "Rajdhani",sans-serif`; ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 30; ctx.fillStyle = '#f1c40f'; ctx.fillText(streakAnnounce.text, canvas.width/2, canvas.height*0.4); ctx.restore(); }
       if (weaponPickupAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, weaponPickupAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?24:36}px "Rajdhani",sans-serif`; ctx.fillStyle = weaponPickupAnnounce.color; ctx.shadowColor = weaponPickupAnnounce.color; ctx.shadowBlur = 20; ctx.fillText(weaponPickupAnnounce.text, canvas.width/2, canvas.height*0.55); ctx.restore(); }
 
-      // ── MINIMAP (Moved to Top Right for Mobile) ──
+     // ── MINIMAP (Moved to Top Right for Mobile) ──
       const mmW = isMob ? 120 : 180, mmH = isMob ? 32 : 48;
       const mmX = canvas.width - mmW - (isMob ? 10 : 22); const mmY = isMob ? 10 : 22;
       const mm = { x: mmX, y: mmY, w: mmW, h: mmH };
       ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(mm.x-2, mm.y-2, mm.w+4, mm.h+4); ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(mm.x, mm.y, mm.w, mm.h);
       const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      
+      // Draw Map Platforms
       for (let obj of map) { if (obj.type==='plat'||obj.type==='floor') ctx.fillRect(mm.x+obj.x*sx, mm.y+obj.y*sy, Math.max(1.5,obj.w*sx), 1); }
+      
+      // Draw Real Players
       for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health<=0) continue; ctx.fillStyle = np.color; ctx.fillRect(mm.x + np.x*sx - 2, mm.y + np.y*sy - 2, 4, 4); }
-      ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
-      ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
+      
+      // Draw NPCs on Radar (NEW)
+      for (let i = 0; i < npcs.length; i++) {
+        if (npcs[i].health <= 0) continue;
+        ctx.fillStyle = npcs[i].color;
+        ctx.fillRect(mm.x + npcs[i].x*sx - 2, mm.y + npcs[i].y*sy - 2, 4, 4);
+      }
 
+      // Draw My Player
+      ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
+      
+      // Radar Border & Text
+      ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
       // ── KILL FEED ──
       ctx.save(); ctx.font = `${isMob?10:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right';
       let kfY = mm.y + mm.h + 20; 
