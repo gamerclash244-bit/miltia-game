@@ -17,7 +17,7 @@
     h1 { font-size: 4rem; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 6px; color: var(--accent); text-shadow: 0 0 24px rgba(85,239,196,0.5); }
     .death-title { color: var(--danger); font-size: 5.5rem; text-shadow: 0 0 32px rgba(255,71,87,0.6); }
     .subtitle { font-family: 'Share Tech Mono', monospace; font-size: 0.95rem; color: #7f8c8d; margin-bottom: 32px; letter-spacing: 2px; }
-    button.ui-btn { padding: 18px 48px; font-size: 1.35rem; font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; background: var(--danger); color: white; border: none; border-radius: 3px; cursor: pointer; margin: 8px; width: 290px; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); transition: background 0.15s, transform 0.1s; position: relative; }
+    button.ui-btn { padding: 18px 48px; font-size: 1.35rem; font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; background: var(--danger); color: white; border: none; border-radius: 3px; cursor: margin: 8px; width: 290px; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); transition: background 0.15s, transform 0.1s; position: relative; }
     button.ui-btn::after { content: ''; position: absolute; inset: 0; border: 1px solid rgba(255,255,255,0.15); clip-path: inherit; pointer-events: none; }
     button.ui-btn:hover { background: #ff6b81; transform: translateY(-1px); }
     button.ui-btn:active { background: #c0392b; transform: translateY(0); }
@@ -187,7 +187,6 @@
         socket.on('kicked', (data) => { isPlaying = false; document.exitPointerLock(); document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.'; document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none'; });
         socket.on('leaderboardUpdate', (topPlayers) => { let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak}</td><td style="text-align:right;">${p.totalKills}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
         
-        // ── SERVER BOTS SYNC ──
         socket.on('npcSync', (serverBots) => {
             if(isPublicMode) npcs = serverBots; 
         });
@@ -196,11 +195,10 @@
             if (data.killerId === socket.id) {
                 myPlayer.kills++; myPlayer.killStreak++; checkStreak(myPlayer.killStreak);
                 socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
-                spawnCoins(data.x + 20, data.y + 20); // Spawns coins at bot death location
+                spawnCoins(data.x + 20, data.y + 20); 
             }
             killFeed.push({ text: `🤖 ${data.killerName} → ${data.botName}`, timer: 5.0, color: (data.killerId === socket.id ? '#ff4757' : '#bdc3c7') });
         });
-        // ──────────────────────
 
       } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
     }
@@ -239,7 +237,7 @@
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
-      if (!isPublicMode) npcs = []; // Ensure no local bots exist
+      if (!isPublicMode) npcs = []; 
       
       buildMap(); initParticles(); gameLoop();
     }
@@ -336,7 +334,6 @@
       if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
       if (keys.fire && t - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) { if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = t; if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = t; } } }
 
-      // ── DETECT IF MY BULLETS HIT A BOT ──
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
@@ -356,9 +353,7 @@
                 for (let n = 0; n < npcs.length; n++) {
                     let npc = npcs[n]; if (npc.health <= 0) continue;
                     if (b.x>npc.x && b.x<npc.x+40 && b.y>npc.y && b.y<npc.y+40) {
-                        destroyed = true;
-                        let dmg = WEAPONS[b.weapon || 'rifle'].damage;
-                        // Tell server we damaged it!
+                        destroyed = true; let dmg = WEAPONS[b.weapon || 'rifle'].damage;
                         socket.emit('damageBot', { botId: npc.id, damage: dmg });
                         damageNumbers.push({ x: npc.x + 20, y: npc.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
                         break;
@@ -371,7 +366,6 @@
 
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
-        
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
         
         if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) {
@@ -383,7 +377,6 @@
             else { screenShake = 0.4; damageNumbers.push({ x: myPlayer.x + 20, y: myPlayer.y - 5, value: 'BLOCKED', vy: -3, opacity: 2.2, color: '#74b9ff', size: 14 }); }
           }
         }
-        
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) networkBullets.splice(i, 1);
       }
 
@@ -429,7 +422,6 @@
         if (np.shield > 0) { ctx.save(); ctx.globalAlpha=0.4; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(np.x-3,np.y-3,46,46); ctx.restore(); }
       }
 
-      // ── DRAW SERVER BOTS ──
       if (isPublicMode) {
           npcs.forEach(npc => {
             if (npc.health <= 0) return;
@@ -457,13 +449,7 @@
       
       const isMob = canvas.width < 768; const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22; const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8); const y1 = isMob ? 10 : 22, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
       
-      if (!isPublicMode && currentRoomCode) {
-          ctx.save();
-          ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width/2 - 100, 10, 200, 30);
-          ctx.fillStyle = 'var(--gold)'; ctx.font = 'bold 16px "Share Tech Mono", monospace'; ctx.textAlign = 'center';
-          ctx.fillText(`ROOM: ${currentRoomCode}`, canvas.width/2, 30);
-          ctx.restore();
-      }
+      if (!isPublicMode && currentRoomCode) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width/2 - 100, 10, 200, 30); ctx.fillStyle = 'var(--gold)'; ctx.font = 'bold 16px "Share Tech Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText(`ROOM: ${currentRoomCode}`, canvas.width/2, 30); ctx.restore(); }
 
       drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
       if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
