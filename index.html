@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BaylerBay Ops - Pro UI & Timed Weapons</title>
+  <title>BaylerBay Ops - Final Polish</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
@@ -17,7 +17,9 @@
     }
     * { box-sizing: border-box; }
     body { margin: 0; overflow: hidden; background: var(--dark); font-family: 'Rajdhani', sans-serif; touch-action: none; }
-    #gameCanvas { display: none; cursor: default; }
+    
+    /* PC FIX: Hides the mouse cursor completely so you just use natural aim */
+    #gameCanvas { display: none; cursor: none; }
     
     .menu-screen {
       position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
@@ -150,9 +152,10 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
     // ══════════════════════════════════════════
-    //  DEVICE DETECTION (Hides joysticks on PC)
+    //  SMART TOUCH DETECTION
     // ══════════════════════════════════════════
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
+    let isTouchMode = false;
+    window.addEventListener('touchstart', () => { isTouchMode = true; }, { once: true });
 
     // ══════════════════════════════════════════
     //  WEAPONS SYSTEM (With Timers)
@@ -196,7 +199,7 @@
       ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, lastShotTime: 0,
       name: "Unknown", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0,
       lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100,
-      weapon: 'rifle', weaponExpire: 0, shield: 0, maxShield: 50, speedBoostTimer: 0, // ADDED weaponExpire
+      weapon: 'rifle', weaponExpire: 0, shield: 0, maxShield: 50, speedBoostTimer: 0,
       killStreak: 0, invincibleTimer: 0
     };
     let isPlaying = false; let bullets = [];
@@ -213,9 +216,7 @@
     }
 
     function initNetwork() {
-      // >>> PASTE YOUR RENDER URL HERE <<<
-      const myRenderURL = "https://YOUR_RENDER_URL_HERE.onrender.com";
-      
+      const myRenderURL = "https://baylerbay-militia-server.onrender.com";
       const loginStatus = document.getElementById('loginStatus');
       if (typeof io === 'undefined') { loginStatus.innerText = "Error: Blocked by browser."; loginStatus.style.color = "#e74c3c"; return; }
       if (socket) return;
@@ -277,7 +278,10 @@
     settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
     colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
     saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
-    playBtn.addEventListener('click', () => { menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (isTouchDevice && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); });
+    playBtn.addEventListener('click', () => { 
+        menus.main.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); 
+        if (isTouchMode && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); 
+    });
     backMenuBtn.addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'block'; });
     respawnBtn.addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; resetRun(); });
 
@@ -342,6 +346,7 @@
 
     function mulberry32(a) { return function() { var t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
+    // MAP COLLISION SHIELD: Stops platforms from spawning inside each other
     function checkOverlap(nx, ny, nw, nh) {
       const PAD = 40; 
       for (let obj of map) {
@@ -465,40 +470,37 @@
     canvas.addEventListener('mousedown', () => { if (!isPlaying) return; keys.fire = true; });
     canvas.addEventListener('mouseup', () => { if (!isPlaying) return; keys.fire = false; });
     
-    // TOUCH JOYS (Only bind if touch exists)
-    if (isTouchDevice) {
-      canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault(); if (!isPlaying) return;
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          let t = e.changedTouches[i];
-          if (t.clientX < canvas.width / 2) { joyLeft.active=true; joyLeft.touchId=t.identifier; joyLeft.startX=t.clientX; joyLeft.startY=t.clientY; joyLeft.dx=0; joyLeft.dy=0; }
-          else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; keys.fire=true; }
-        }
-      }, {passive: false});
-      canvas.addEventListener('touchmove', (e) => {
-        e.preventDefault(); if (!isPlaying) return;
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          let t = e.changedTouches[i];
-          if (joyLeft.active && t.identifier===joyLeft.touchId) { let dx=t.clientX-joyLeft.startX; let dy=t.clientY-joyLeft.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyLeft.dx=dx; joyLeft.dy=dy; }
-          if (joyRight.active && t.identifier===joyRight.touchId) { let dx=t.clientX-joyRight.startX; let dy=t.clientY-joyRight.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyRight.dx=dx; joyRight.dy=dy; keys.fire = Math.hypot(dx,dy) > 20; }
-        }
-      }, {passive: false});
-      canvas.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          let t = e.changedTouches[i];
-          if (joyLeft.active && t.identifier===joyLeft.touchId) { joyLeft.active=false; keys.a=false; keys.d=false; keys.w=false; }
-          if (joyRight.active && t.identifier===joyRight.touchId) { joyRight.active=false; keys.fire=false; }
-        }
-      }, {passive: false});
-    }
+    // TOUCH JOYS
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault(); if (!isPlaying) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let t = e.changedTouches[i];
+        if (t.clientX < canvas.width / 2) { joyLeft.active=true; joyLeft.touchId=t.identifier; joyLeft.startX=t.clientX; joyLeft.startY=t.clientY; joyLeft.dx=0; joyLeft.dy=0; }
+        else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; keys.fire=true; }
+      }
+    }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault(); if (!isPlaying) return;
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let t = e.changedTouches[i];
+        if (joyLeft.active && t.identifier===joyLeft.touchId) { let dx=t.clientX-joyLeft.startX; let dy=t.clientY-joyLeft.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyLeft.dx=dx; joyLeft.dy=dy; }
+        if (joyRight.active && t.identifier===joyRight.touchId) { let dx=t.clientX-joyRight.startX; let dy=t.clientY-joyRight.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyRight.dx=dx; joyRight.dy=dy; keys.fire = Math.hypot(dx,dy) > 20; }
+      }
+    }, {passive: false});
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let t = e.changedTouches[i];
+        if (joyLeft.active && t.identifier===joyLeft.touchId) { joyLeft.active=false; keys.a=false; keys.d=false; keys.w=false; }
+        if (joyRight.active && t.identifier===joyRight.touchId) { joyRight.active=false; keys.fire=false; }
+      }
+    }, {passive: false});
 
     function shoot() {
       const w = WEAPONS[myPlayer.weapon];
       let bx = myPlayer.x + myPlayer.width/2, by = myPlayer.y + myPlayer.height/2;
       for (let p = 0; p < w.pellets; p++) {
-        let spread = (Math.random() - 0.5) * w.spread;
-        let angle = myPlayer.aimAngle + spread;
+        let spread = (Math.random() - 0.5) * w.spread; let angle = myPlayer.aimAngle + spread;
         let bvx = Math.cos(angle) * w.speed, bvy = Math.sin(angle) * w.speed;
         let radius = myPlayer.weapon === 'sniper' ? 6 : myPlayer.weapon === 'shotgun' ? 3 : 4;
         bullets.push({ x: bx, y: by, vx: bvx, vy: bvy, radius, weapon: myPlayer.weapon, color: w.bulletColor });
@@ -509,12 +511,9 @@
     function update() {
       let t = Date.now();
 
-      // ── WEAPON TIMER (Revert to Rifle after 30s) ──
       if (myPlayer.weapon !== 'rifle' && t > myPlayer.weaponExpire) {
-        myPlayer.weapon = 'rifle';
-        myPlayer.ammo = WEAPONS['rifle'].ammo; myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
-        myPlayer.isReloading = false;
-        weaponPickupAnnounce = { text: `WEAPON EXPIRED`, opacity: 2.5, color: '#fff' };
+        myPlayer.weapon = 'rifle'; myPlayer.ammo = WEAPONS['rifle'].ammo; myPlayer.maxAmmo = WEAPONS['rifle'].ammo;
+        myPlayer.isReloading = false; weaponPickupAnnounce = { text: `WEAPON EXPIRED`, opacity: 2.5, color: '#fff' };
       }
 
       for (let obj of map) {
@@ -523,7 +522,8 @@
         if (obj.moveY) obj.y = obj.moveBaseY + Math.sin(t * obj.moveSpeedY + obj.movePhaseY) * obj.moveRangeY;
       }
 
-      if (isTouchDevice) {
+      // SMART AIM DETECTION
+      if (isTouchMode) {
         if (joyLeft.active) { keys.a = joyLeft.dx < -15; keys.d = joyLeft.dx > 15; keys.w = joyLeft.dy < -15; }
         if (joyRight.active) { myPlayer.aimAngle = Math.atan2(joyRight.dy, joyRight.dx); }
       } else {
@@ -531,11 +531,9 @@
         myPlayer.aimAngle = Math.atan2(wy - (myPlayer.y + myPlayer.height/2), wx - (myPlayer.x + myPlayer.width/2));
       }
 
-      let newBiome = targetBiome;
-      for (let b of biomes) { if (myPlayer.x < b.endX) { newBiome = b; break; } }
+      let newBiome = targetBiome; for (let b of biomes) { if (myPlayer.x < b.endX) { newBiome = b; break; } }
       if (newBiome !== targetBiome) { targetBiome = newBiome; biomePopupName = targetBiome.name; biomePopupOpacity = 2.5; }
       if (biomePopupOpacity > 0) biomePopupOpacity -= 0.02;
-
       currentSky[0] += (targetBiome.sky[0] - currentSky[0]) * 0.05; currentSky[1] += (targetBiome.sky[1] - currentSky[1]) * 0.05; currentSky[2] += (targetBiome.sky[2] - currentSky[2]) * 0.05;
       updateParticles();
 
@@ -564,10 +562,8 @@
           else if (p.type === 'shield') { myPlayer.shield = myPlayer.maxShield; killFeed.push({ text: '+ SHIELD ACTIVE', timer: 3.0, color: '#74b9ff' }); }
           else if (p.type === 'speed') { myPlayer.speedBoostTimer = t + 7000; killFeed.push({ text: '+ SPEED BOOST (7s)', timer: 3.0, color: '#fdcb6e' }); }
           else if (p.type === 'shotgun' || p.type === 'sniper') {
-            myPlayer.weapon = p.type;
-            const w = WEAPONS[p.type]; myPlayer.ammo = w.ammo; myPlayer.maxAmmo = w.ammo; myPlayer.isReloading = false;
-            myPlayer.weaponExpire = t + 30000; // 30 SECONDS
-            weaponPickupAnnounce = { text: `⚡ ${w.name} EQUIPPED (30s)`, opacity: 3.5, color: w.crateColor };
+            myPlayer.weapon = p.type; const w = WEAPONS[p.type]; myPlayer.ammo = w.ammo; myPlayer.maxAmmo = w.ammo; myPlayer.isReloading = false;
+            myPlayer.weaponExpire = t + 30000; weaponPickupAnnounce = { text: `⚡ ${w.name} EQUIPPED (30s)`, opacity: 3.5, color: w.crateColor };
           }
           powerups.splice(i, 1);
         }
@@ -625,8 +621,10 @@
       ctx.fillStyle = fillColor; ctx.fillRect(x, y, w * Math.max(0, Math.min(1, fillRatio)), h);
       ctx.fillStyle = labelColor || 'white'; ctx.font = `bold ${fSize}px "Share Tech Mono", monospace`; ctx.textAlign = 'left'; ctx.fillText(label, x+6, y + h - (h*0.25));
     }
+    
     function drawJoystick(joy, color) {
-      if (!isTouchDevice || !joy.active) return; ctx.save(); ctx.globalAlpha = 0.4;
+      if (!isTouchMode || !joy.active) return; 
+      ctx.save(); ctx.globalAlpha = 0.4;
       ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(joy.startX, joy.startY, 55, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = color; ctx.beginPath(); ctx.arc(joy.startX+joy.dx, joy.startY+joy.dy, 28, 0, Math.PI*2); ctx.fill(); ctx.restore();
     }
@@ -661,7 +659,8 @@
         let np = networkPlayers[id]; if (np.health<=0) continue; if (np.x>viewRight || np.x+40<viewLeft) continue;
         let npGunColor = np.weapon==='shotgun'?'#e67e22': np.weapon==='sniper'?'#a29bfe':'#bdc3c7'; let npGunLen = np.weapon==='sniper'?50: np.weapon==='shotgun'?28:35;
         ctx.save(); ctx.translate(np.x+20,np.y+20); ctx.rotate(np.aimAngle); ctx.fillStyle=npGunColor; ctx.fillRect(0,-4,npGunLen,8); ctx.restore();
-        ctx.fillStyle=np.color; ctx.fillRect(np.x,np.y,40,40); ctx.fillStyle='red'; ctx.fillRect(np.x,np.y-12,42,5); ctx.fillStyle='#2ecc71'; ctx.fillRect(np.x,np.y-12,42*(np.health/100),5); ctx.fillStyle='white'; ctx.font='bold 12px "Rajdhani",sans-serif'; ctx.textAlign='center'; ctx.fillText(np.name,np.x+20,np.y-16);
+        ctx.fillStyle=np.color; ctx.fillRect(np.x,np.y,40,40); ctx.fillStyle='red'; ctx.fillRect(np.x,np.y-12,42,5); ctx.fillStyle='#2ecc71'; ctx.fillRect(np.x,np.y-12,42*(np.health/100),5);
+        ctx.fillStyle='white'; ctx.font='bold 12px "Rajdhani",sans-serif'; ctx.textAlign='center'; ctx.fillText(np.name,np.x+20,np.y-16);
         if (np.shield > 0) { ctx.save(); ctx.globalAlpha=0.4; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(np.x-3,np.y-3,46,46); ctx.restore(); }
       }
 
@@ -680,11 +679,11 @@
       for (let c of coinParticles) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, c.opacity)); ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore(); }
       ctx.restore(); 
 
-      // ── HUD (RESPONSIVE) ──
+      // ── RESPONSIVE HUD ──
       const isMob = canvas.width < 768;
-      const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22;
-      const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8);
-      const y1 = isMob ? 10 : 22, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
+      const HX = isMob ? 10 : 20, HW = isMob ? 120 : 200, HH = isMob ? 12 : 20;
+      const fSize = isMob ? 9 : 13; const gap = HH + (isMob ? 4 : 8);
+      const y1 = isMob ? 10 : 20, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
 
       drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
       if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
@@ -695,22 +694,19 @@
       ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, aY, HW+4, HH+4); ctx.fillStyle=(myPlayer.ammo===0)?'rgba(80,0,0,0.8)':'rgba(255,255,255,0.06)'; ctx.fillRect(HX, aY+2, HW, HH); ctx.fillStyle=(myPlayer.ammo===0)?'#e74c3c':'white'; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(myPlayer.isReloading ? 'RELOADING...' : `AMMO  ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, HX+6, aY+HH-3);
       ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, kY, HW+4, HH+4); ctx.fillStyle='rgba(241,196,15,0.1)'; ctx.fillRect(HX, kY+2, HW, HH); ctx.fillStyle='#f1c40f'; ctx.font=`bold ${fSize+1}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`KILLS  ${myPlayer.kills}  STREAK ${myPlayer.killStreak}`, HX+6, kY+HH-3);
       
-      // Timer for Weapon
-      let wTimeStr = "";
-      if (myPlayer.weapon !== 'rifle') wTimeStr = ` [${Math.ceil((myPlayer.weaponExpire - t) / 1000)}s]`;
-      
+      let wTimeStr = ""; if (myPlayer.weapon !== 'rifle') wTimeStr = ` [${Math.ceil((myPlayer.weaponExpire - t) / 1000)}s]`;
       const wCol = wDef.crateColor || '#bdc3c7';
       ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, wY, HW+4, HH+4); ctx.fillStyle = wCol + '22'; ctx.fillRect(HX, wY+2, HW, HH); ctx.strokeStyle = wCol; ctx.lineWidth=1; ctx.strokeRect(HX, wY+2, HW, HH); ctx.fillStyle = wCol; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚙ ${wDef.name}${wTimeStr}`, HX+6, wY+HH-3);
-      if (myPlayer.speedBoostTimer > t) { let remaining = Math.ceil((myPlayer.speedBoostTimer - t) / 1000); ctx.fillStyle='#fdcb6e'; ctx.font=`bold ${fSize-2}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, wY+HH+(isMob?14:18)); }
-      if (invincible) { ctx.save(); ctx.globalAlpha = 0.6 + Math.sin(t * 0.02) * 0.4; ctx.fillStyle = '#55efc4'; ctx.font = `bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText('★ INVINCIBLE', HX+6, wY+HH+(isMob?28:36)); ctx.restore(); }
+      if (myPlayer.speedBoostTimer > t) { let remaining = Math.ceil((myPlayer.speedBoostTimer - t) / 1000); ctx.fillStyle='#fdcb6e'; ctx.font=`bold ${fSize-1}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, wY+HH+(isMob?12:18)); }
+      if (invincible) { ctx.save(); ctx.globalAlpha = 0.6 + Math.sin(t * 0.02) * 0.4; ctx.fillStyle = '#55efc4'; ctx.font = `bold ${fSize+1}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText('★ INVINCIBLE', HX+6, wY+HH+(isMob?24:36)); ctx.restore(); }
 
       if (biomePopupOpacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(biomePopupOpacity, 1.0); ctx.textAlign='center'; ctx.fillStyle='white'; ctx.font=`bold ${isMob?32:52}px "Rajdhani",sans-serif`; ctx.fillText(biomePopupName, canvas.width/2, canvas.height*0.25); ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.fillRect(canvas.width/2 - (isMob?120:180), canvas.height*0.25+14, isMob?240:360, 3); ctx.restore(); }
       if (streakAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, streakAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?28:44}px "Rajdhani",sans-serif`; ctx.shadowColor = '#f1c40f'; ctx.shadowBlur = 30; ctx.fillStyle = '#f1c40f'; ctx.fillText(streakAnnounce.text, canvas.width/2, canvas.height*0.4); ctx.restore(); }
-      if (weaponPickupAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, weaponPickupAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?24:36}px "Rajdhani",sans-serif`; ctx.fillStyle = weaponPickupAnnounce.color; ctx.shadowColor = weaponPickupAnnounce.color; ctx.shadowBlur = 20; ctx.fillText(weaponPickupAnnounce.text, canvas.width/2, canvas.height*0.55); ctx.restore(); }
+      if (weaponPickupAnnounce.opacity > 0) { ctx.save(); ctx.globalAlpha = Math.min(1, weaponPickupAnnounce.opacity); ctx.textAlign = 'center'; ctx.font = `bold ${isMob?20:36}px "Rajdhani",sans-serif`; ctx.fillStyle = weaponPickupAnnounce.color; ctx.shadowColor = weaponPickupAnnounce.color; ctx.shadowBlur = 20; ctx.fillText(weaponPickupAnnounce.text, canvas.width/2, canvas.height*0.55); ctx.restore(); }
 
       // ── MINIMAP (Top Right) ──
-      const mmW = isMob ? 120 : 180, mmH = isMob ? 32 : 48;
-      const mmX = canvas.width - mmW - (isMob ? 10 : 22); const mmY = isMob ? 10 : 22;
+      const mmW = isMob ? 100 : 180, mmH = isMob ? 24 : 48;
+      const mmX = canvas.width - mmW - (isMob ? 10 : 20); const mmY = isMob ? 10 : 20;
       const mm = { x: mmX, y: mmY, w: mmW, h: mmH };
       ctx.fillStyle = 'rgba(0,0,0,0.72)'; ctx.fillRect(mm.x-2, mm.y-2, mm.w+4, mm.h+4); ctx.fillStyle = 'rgba(255,255,255,0.03)'; ctx.fillRect(mm.x, mm.y, mm.w, mm.h);
       const sx = mm.w / worldWidth, sy = mm.h / worldHeight; ctx.fillStyle = 'rgba(255,255,255,0.18)';
@@ -719,12 +715,12 @@
       ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
       ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
 
-      ctx.save(); ctx.font = `${isMob?10:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right';
-      let kfY = mm.y + mm.h + 20; 
+      ctx.save(); ctx.font = `${isMob?9:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right';
+      let kfY = mm.y + mm.h + 16; 
       for (let kf of killFeed) {
-        ctx.globalAlpha = Math.min(1, kf.timer); let w = ctx.measureText(kf.text).width + 20;
-        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width - w - 12, kfY - 16, w, 20);
-        ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 12, kfY); kfY += 24;
+        ctx.globalAlpha = Math.min(1, kf.timer); let w = ctx.measureText(kf.text).width + 16;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width - w - 10, kfY - 14, w, 18);
+        ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 10, kfY - 2); kfY += 20;
       }
       ctx.restore();
 
