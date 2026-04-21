@@ -7,8 +7,11 @@ class NPC {
     this.id = id;
     this.name = name;
     this.color = color;
-    this.x = Math.random() * 8000 + 500;
-    this.y = 2000;
+    
+    // NEW: Spawn randomly across the map, dropping from the sky
+    this.x = Math.random() * 8000 + 1000; 
+    this.y = Math.random() * 500 + 200; 
+    
     this.width = 40;
     this.height = 40;
     this.dx = 0;
@@ -30,18 +33,16 @@ class NPC {
     const now = Date.now();
     this.decisionTimer -= dt; 
 
-    // --- 1. TARGETING SYSTEM (Shoots Players AND Other Bots) ---
+    // --- 1. TARGETING SYSTEM ---
     let closest = null;
-    let minDist = 1200; // Aggro range
+    let minDist = 1200; 
 
-    // Check distance to YOU
     let distToMe = Math.hypot(myPlayer.x - this.x, myPlayer.y - this.y);
     if (distToMe < minDist && myPlayer.health > 0) {
       minDist = distToMe;
       closest = myPlayer;
     }
 
-    // Check distance to NETWORK PLAYERS
     for (let id in networkPlayers) {
       let p = networkPlayers[id];
       if (p.health <= 0) continue;
@@ -49,7 +50,6 @@ class NPC {
       if (d < minDist) { minDist = d; closest = p; }
     }
 
-    // Check distance to OTHER NPCs
     for (let i = 0; i < allNPCs.length; i++) {
       let otherBot = allNPCs[i];
       if (otherBot.id === this.id || otherBot.health <= 0) continue;
@@ -59,7 +59,7 @@ class NPC {
     
     this.target = closest;
 
-    // --- 2. MOVEMENT & DECISION LOGIC ---
+    // --- 2. MOVEMENT LOGIC ---
     if (this.decisionTimer <= 0) {
       this.decisionTimer = 1000 + Math.random() * 2000;
       if (this.target) {
@@ -71,16 +71,14 @@ class NPC {
       }
     }
 
-    this.x += this.moveDir * 4; // Move speed
-    this.dy += 0.35; // Gravity
+    this.x += this.moveDir * 4; 
+    this.dy += 0.35; 
     
-    // Jetpack Logic
     if ((this.target && this.target.y < this.y - 100) || this.y > 2300) {
       this.dy -= 0.8; 
     }
     this.y += this.dy;
 
-    // Platform Collisions
     platforms.forEach(obj => {
       if (this.x < obj.x + obj.w && this.x + this.width > obj.x && 
           this.y < obj.y + obj.h && this.y + this.height > obj.y) {
@@ -95,7 +93,7 @@ class NPC {
       let targetY = this.target.y + 20;
       
       let desiredAngle = Math.atan2(targetY - (this.y + 20), targetX - (this.x + 20));
-      this.aimAngle += (desiredAngle - this.aimAngle) * 0.15; // Smooth aiming
+      this.aimAngle += (desiredAngle - this.aimAngle) * 0.15; 
 
       if (now - this.lastShotTime > 500 + Math.random() * 500) {
         this.shoot(now, networkBullets);
@@ -112,20 +110,21 @@ class NPC {
       vy: Math.sin(this.aimAngle) * 14,
       radius: 4,
       color: '#ffffff',
-      ownerId: this.id // Identifies who shot it
+      ownerId: this.id 
     });
   }
 }
 
-// Spawner
 function spawnNPCs(count) {
   const names = ["Alpha_Unit", "Ghost_Z", "Rogue_01", "Shadow_Byte", "Viper", "Keralite_Pro", "Bot_Nizal", "Cyber_Rex", "Void_Walker"];
   const colors = ["#ff4757", "#2ecc71", "#3498db", "#f1c40f", "#a29bfe", "#fd79a8"];
   let list = [];
   for (let i = 0; i < count; i++) {
+    // Generate a unique ID for accurate killfeeds
+    let uniqueId = "npc_" + Date.now() + "_" + i;
     let n = names[Math.floor(Math.random() * names.length)] + "_" + Math.floor(Math.random() * 99);
     let c = colors[Math.floor(Math.random() * colors.length)];
-    list.push(new NPC("npc_" + i, n, c));
+    list.push(new NPC(uniqueId, n, c));
   }
   return list;
 }
