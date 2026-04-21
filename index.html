@@ -318,6 +318,7 @@
   <canvas id="gameCanvas"></canvas>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="npc.js"></script>
   <script>
     // ══════════════════════════════════════════
     //  TOUCH DETECTION
@@ -349,6 +350,7 @@
     //  NETWORK & CAMERA
     // ══════════════════════════════════════════
     let socket = null; let networkPlayers = {}; let networkBullets = []; let isOnline = false; let lastSyncTime = 0;
+    let npcs = []; // Added NPCs array
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = [];
     
@@ -570,6 +572,9 @@
       joyLeft.active = false; joyRight.active = false;
       keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       
+      // Spawn bots
+      npcs = spawnNPCs(5);
+
       // Center Virtual Mouse
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
@@ -930,6 +935,35 @@
         }
       }
 
+      // === NPC UPDATE LOGIC ===
+      for (let i = npcs.length - 1; i >= 0; i--) {
+        let npc = npcs[i];
+        npc.update(map, networkPlayers, myPlayer, 16, networkBullets);
+        
+        // Check if player bullets hit NPC
+        bullets.forEach((b, bIdx) => {
+            if (b.x > npc.x && b.x < npc.x + 40 && b.y > npc.y && b.y < npc.y + 40) {
+                let dmg = WEAPONS[b.weapon || 'rifle'].damage;
+                npc.health -= dmg;
+                bullets.splice(bIdx, 1);
+                
+                damageNumbers.push({ x: npc.x + 20, y: npc.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
+
+                if (npc.health <= 0) {
+                    myPlayer.kills++;
+                    myPlayer.killStreak++;
+                    checkStreak(myPlayer.killStreak);
+                    killFeed.push({ text: `☠ YOU → ${npc.name}`, timer: 5.0, color: '#ff4757' });
+                    spawnCoins(npc.x + 20, npc.y + 20);
+                }
+            }
+        });
+
+        if (npc.health <= 0) {
+            npcs.splice(i, 1);
+        }
+      }
+
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
@@ -1052,6 +1086,29 @@
         ctx.fillStyle='white'; ctx.font='bold 12px "Rajdhani",sans-serif'; ctx.textAlign='center'; ctx.fillText(np.name,np.x+20,np.y-16);
         if (np.shield > 0) { ctx.save(); ctx.globalAlpha=0.4; ctx.strokeStyle='#74b9ff'; ctx.lineWidth=3; ctx.strokeRect(np.x-3,np.y-3,46,46); ctx.restore(); }
       }
+
+      // === DRAW NPCs ===
+      npcs.forEach(npc => {
+        if (npc.health <= 0) return;
+        ctx.fillStyle = npc.color;
+        ctx.fillRect(npc.x, npc.y, 40, 40);
+        
+        ctx.fillStyle='red'; ctx.fillRect(npc.x, npc.y-12, 42, 5);
+        ctx.fillStyle='#2ecc71'; ctx.fillRect(npc.x, npc.y-12, 42*(npc.health/100), 5);
+
+        ctx.save();
+        ctx.translate(npc.x + 20, npc.y + 20);
+        ctx.rotate(npc.aimAngle);
+        ctx.strokeStyle = "white"; 
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(35, 0); ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 12px "Rajdhani", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(npc.name, npc.x + 20, npc.y - 16);
+      });
 
       const cx = myPlayer.x + myPlayer.width/2, cy = myPlayer.y + myPlayer.height/2; const wDef = WEAPONS[myPlayer.weapon];
       let invincible = myPlayer.invincibleTimer > Date.now();
