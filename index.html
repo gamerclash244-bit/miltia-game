@@ -431,15 +431,28 @@
       if (socket) return;
       loginStatus.innerText = "Waking up server... (Can take 50 seconds)";
       loginStatus.style.color = "#f39c12";
+      
       try {
+        // 1. FIRST, connect to the server
         socket = io(myRenderURL, { reconnectionAttempts: 12, reconnectionDelay: 5000 });
 
+        // 2. THEN, set up all the listeners
         socket.on('connect', () => {
           isOnline = true;
           loginStatus.innerText = "Server Online. Please Authenticate.";
           loginStatus.style.color = "#2ecc71";
           authBtn.style.display = "block";
         });
+
+        // 👇 The global bot listener goes right here 👇
+        socket.on('botsSync', (serverBotsData) => {
+            npcs = serverBotsData; // Overwrite local bot data with the server's authoritative data
+        });
+
+        // Keep the rest of your listeners exactly as they were below this...
+        socket.on('newPlayer', (playerInfo) => {
+          networkPlayers[playerInfo.id] = playerInfo.player;
+          // ... rest of your code ...
 
         socket.on('newPlayer', (playerInfo) => {
           networkPlayers[playerInfo.id] = playerInfo.player;
