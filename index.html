@@ -233,14 +233,12 @@
 </head>
 <body>
 
-  <!-- KICKED OVERLAY -->
   <div id="kickedOverlay">
     <h2>⚠ Session Terminated</h2>
     <p id="kickedMsg">Your callsign logged in from another device.</p>
     <button class="ui-btn" onclick="returnToLogin()">Return to Login</button>
   </div>
 
-  <!-- LOGIN -->
   <div id="loginScreen" class="menu-screen">
     <h1>Database Uplink</h1>
     <p class="subtitle">[ SECURE AUTHENTICATION REQUIRED ]</p>
@@ -252,7 +250,6 @@
     <button id="authBtn" class="ui-btn" style="display: none;">Verify &amp; Link</button>
   </div>
 
-  <!-- LEADERBOARD -->
   <div id="leaderboardPanel">
     <h3>Top Operators</h3>
     <table class="lb-table">
@@ -270,7 +267,6 @@
     </table>
   </div>
 
-  <!-- MAIN MENU -->
   <div id="mainMenu" class="menu-screen" style="display:none;">
     <h1>BaylerBay Ops</h1>
     <p class="subtitle">PC: WASD + MOUSE &nbsp;|&nbsp; MOBILE: TOUCH JOYSTICKS</p>
@@ -278,7 +274,6 @@
     <button id="settingsBtn" class="ui-btn secondary">Armor Config</button>
   </div>
 
-  <!-- SETTINGS -->
   <div id="settingsMenu" class="menu-screen" style="display:none;">
     <h1 style="color: var(--gold);">Armor Config</h1>
     <p class="subtitle">[ SELECT OPERATOR COLOR ]</p>
@@ -295,7 +290,6 @@
     <button id="saveSettingsBtn" class="ui-btn" style="margin-top:28px;">Save &amp; Return</button>
   </div>
 
-  <!-- DEATH SCREEN -->
   <div id="deathScreen" class="menu-screen" style="display:none;">
     <h1 class="death-title">K.I.A.</h1>
     <p id="finalKillsText">STREAK: 0</p>
@@ -354,17 +348,12 @@
     let isPlaying = false; let bullets = [];
     const keys = { w: false, a: false, d: false, fire: false };
 
-    /* ════════════════════════════════════════
-       KICKED / UNIQUE SESSION LOGIC
-    ════════════════════════════════════════ */
     function returnToLogin() {
       document.getElementById('kickedOverlay').classList.remove('visible');
-      // Hide all game screens
       canvas.style.display = 'none';
       isPlaying = false;
       Object.values(menus).forEach(m => m.style.display = 'none');
       leaderboardPanel.style.display = 'none';
-      // Reset login UI
       const status = document.getElementById('loginStatus');
       status.innerText = 'Server Online. Please Authenticate.';
       status.style.color = '#2ecc71';
@@ -372,9 +361,6 @@
       menus.login.style.display = 'flex';
     }
 
-    /* ════════════════════════════════════════
-       NETWORK
-    ════════════════════════════════════════ */
     function initNetwork() {
       const myRenderURL = "https://baylerbay-militia-server.onrender.com";
       const loginStatus = document.getElementById('loginStatus');
@@ -392,18 +378,30 @@
           authBtn.style.display = "block";
         });
 
+        // KILL BUG FIX: Initialize local tracking for new players
         socket.on('newPlayer', (playerInfo) => {
           networkPlayers[playerInfo.id] = playerInfo.player;
           networkPlayers[playerInfo.id].targetX = playerInfo.player.x;
           networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
+          networkPlayers[playerInfo.id].localHealth = playerInfo.player.health;
+          networkPlayers[playerInfo.id].countedKill = false;
         });
 
+        // KILL BUG FIX: Ensure server health doesn't erase local prediction
         socket.on('playerMoved', (playerInfo) => {
           if (networkPlayers[playerInfo.id]) {
-            networkPlayers[playerInfo.id].targetX = playerInfo.player.x;
-            networkPlayers[playerInfo.id].targetY = playerInfo.player.y;
-            networkPlayers[playerInfo.id].aimAngle = playerInfo.player.aimAngle;
-            networkPlayers[playerInfo.id].health = playerInfo.player.health;
+            let np = networkPlayers[playerInfo.id];
+            np.targetX = playerInfo.player.x;
+            np.targetY = playerInfo.player.y;
+            np.aimAngle = playerInfo.player.aimAngle;
+            np.health = playerInfo.player.health; // for rendering UI bar
+
+            if (playerInfo.player.health === 100) {
+                np.localHealth = 100;
+                np.countedKill = false; // Reset kill lock on respawn
+            } else if (np.localHealth === undefined || playerInfo.player.health < np.localHealth) {
+                np.localHealth = playerInfo.player.health;
+            }
           }
         });
 
@@ -415,13 +413,11 @@
           isOnline = false;
         });
 
-        // ── UNIQUE SESSION: kicked from another device ──
         socket.on('kicked', (data) => {
           isPlaying = false;
           const msg = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.';
           document.getElementById('kickedMsg').innerText = msg;
           document.getElementById('kickedOverlay').classList.add('visible');
-          // Force canvas off so the overlay is visible
           canvas.style.display = 'none';
         });
 
@@ -445,9 +441,6 @@
 
     initNetwork();
 
-    /* ════════════════════════════════════════
-       AUTH
-    ════════════════════════════════════════ */
     authBtn.addEventListener('click', () => {
       const name = document.getElementById('loginName').value.trim();
       const pin = document.getElementById('loginPin').value.trim();
@@ -459,15 +452,18 @@
           myPlayer.name = name;
           networkPlayers = res.currentPlayers;
           delete networkPlayers[socket.id];
+          
           for (let id in networkPlayers) {
             networkPlayers[id].targetX = networkPlayers[id].x;
             networkPlayers[id].targetY = networkPlayers[id].y;
+            networkPlayers[id].localHealth = networkPlayers[id].health;
+            networkPlayers[id].countedKill = false;
           }
+          
           menus.login.style.display = 'none';
           menus.main.style.display = 'flex';
           leaderboardPanel.style.display = 'block';
         } else {
-          // Could be "Already logged in from another device" from server
           status.innerText = res.message;
           status.style.color = "#e74c3c";
         }
@@ -511,9 +507,6 @@
       canvas.style.display = 'none'; menus.death.style.display = 'flex'; leaderboardPanel.style.display = 'block';
     }
 
-    /* ════════════════════════════════════════
-       MAP / PARTICLES
-    ════════════════════════════════════════ */
     function initParticles() {
       particles = [];
       for (let i = 0; i < maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 });
@@ -553,9 +546,6 @@
       }
     }
 
-    /* ════════════════════════════════════════
-       INPUT
-    ════════════════════════════════════════ */
     window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; });
     window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=false; if (k==='d'||k==='arrowright') keys.d=false; if (k==='w'||k==='arrowup'||k===' ') keys.w=false; });
     canvas.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
@@ -586,9 +576,6 @@
       }
     }, {passive: false});
 
-    /* ════════════════════════════════════════
-       GAME LOGIC
-    ════════════════════════════════════════ */
     function shoot() {
       let bx = myPlayer.x + myPlayer.width/2; let by = myPlayer.y + myPlayer.height/2;
       let bvx = Math.cos(myPlayer.aimAngle) * 16; let bvy = Math.sin(myPlayer.aimAngle) * 16;
@@ -644,16 +631,50 @@
         if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = Date.now(); if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = Date.now(); } }
       }
 
+      // KILL BUG FIX: Local Prediction Collision
       for (let i = bullets.length - 1; i >= 0; i--) {
         let b = bullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
-        if (!destroyed) { for (let id in networkPlayers) { let np = networkPlayers[id]; if (np.health<=0) continue; if (b.x>np.x && b.x<np.x+40 && b.y>np.y && b.y<np.y+40) { destroyed=true; if(np.health<=15) myPlayer.kills++; break; } } }
+        
+        if (!destroyed) { 
+            for (let id in networkPlayers) { 
+                let np = networkPlayers[id]; 
+                
+                // Do not shoot dead bodies
+                if (np.localHealth <= 0 || np.health <= 0) continue; 
+                
+                if (b.x>np.x && b.x<np.x+40 && b.y>np.y && b.y<np.y+40) { 
+                    destroyed=true; 
+                    if (np.localHealth === undefined) np.localHealth = np.health;
+                    
+                    // Subtract health locally independent of server delay
+                    np.localHealth -= 15; 
+                    
+                    // If health drops to 0 and we haven't already counted them...
+                    if (np.localHealth <= 0 && !np.countedKill) { 
+                        myPlayer.kills++; 
+                        np.countedKill = true; // Lock it to guarantee only 1 kill is awarded
+                    } 
+                    break; 
+                } 
+            } 
+        }
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) bullets.splice(i, 1);
       }
+
+      // KILL BUG FIX: Protection against double-deaths
       for (let i = networkBullets.length - 1; i >= 0; i--) {
         let b = networkBullets[i]; b.x += b.vx; b.y += b.vy; let destroyed = false;
         for (let obj of map) { if (b.x>obj.x && b.x<obj.x+obj.w && b.y>obj.y && b.y<obj.y+obj.h) { destroyed=true; break; } }
-        if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) { myPlayer.health -= 15; destroyed = true; if (myPlayer.health <= 0) killPlayer(); }
+        
+        if (!destroyed && b.x>myPlayer.x && b.x<myPlayer.x+myPlayer.width && b.y>myPlayer.y && b.y<myPlayer.y+myPlayer.height) { 
+            destroyed = true; 
+            // Only take damage if you are actually alive
+            if (myPlayer.health > 0) {
+                myPlayer.health -= 15; 
+                if (myPlayer.health <= 0) killPlayer(); 
+            }
+        }
         if (destroyed || b.x<0 || b.x>worldWidth || b.y<0 || b.y>worldHeight) networkBullets.splice(i, 1);
       }
 
@@ -661,9 +682,6 @@
       camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height/2 - canvas.height/2, worldHeight - canvas.height));
     }
 
-    /* ════════════════════════════════════════
-       DRAW — larger HUD elements
-    ════════════════════════════════════════ */
     function drawHUDBar(x, y, w, h, fillRatio, bgColor, fillColor, label, labelColor) {
       ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x-2, y-2, w+4, h+4);
       ctx.fillStyle = bgColor; ctx.fillRect(x, y, w, h);
