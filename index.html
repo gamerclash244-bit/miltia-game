@@ -43,12 +43,16 @@
     .lb-table td { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .lb-rank { font-weight: 700; color: var(--gold); width: 34px; }
     #finalKillsText { font-size: 2rem; margin-bottom: 32px; color: var(--gold); letter-spacing: 3px; }
+    
+    .info-box { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 5px; border: 1px solid var(--accent); max-width: 500px; text-align: left; font-family: 'Share Tech Mono', monospace; line-height: 1.6; margin-bottom: 20px;}
+    
     @media (max-width: 800px) {
       .menu-screen { justify-content: flex-start; padding-top: 5vh; height: 100vh; overflow: hidden; }
       h1 { font-size: 2.4rem; letter-spacing: 3px; margin-bottom: 5px; }
       .subtitle { margin-bottom: 15px; font-size: 0.8rem; }
       button.ui-btn, input[type="text"], input[type="password"] { width: 260px; }
       #leaderboardPanel { right: auto; top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 360px; max-height: 35vh; overflow-y: auto; padding: 15px; }
+      .info-box { max-width: 90%; font-size: 0.85rem; }
     }
   </style>
 </head>
@@ -62,7 +66,6 @@
     <p id="loginStatus" style="color: #f1c40f;">Connecting to server...</p>
     <div class="setting-group">
       <input type="text" id="loginName" placeholder="CALLSIGN" maxlength="12">
-      <input type="password" id="loginPin" placeholder="SECRET PIN" maxlength="8">
     </div>
     <button id="authBtn" class="ui-btn" style="display: none;">Verify &amp; Link</button>
   </div>
@@ -75,14 +78,34 @@
     <button id="settingsBtn" class="ui-btn secondary">Avatar</button>
   </div>
 
-  <div id="roomMenu" class="menu-screen" style="display:none;">
-    <h1 style="color: var(--gold);">Private Room</h1>
-    <p class="subtitle">[ ENTER TOURNAMENT CODE ]</p>
+  <div id="roomSelectMenu" class="menu-screen" style="display:none;">
+    <h1 style="color: var(--gold);">Room Play</h1>
+    <p class="subtitle">[ PRIVATE ESPORTS MATCH ]</p>
+    <button id="createRoomBtn" class="ui-btn">Create Room</button>
+    <button id="showEnterRoomBtn" class="ui-btn">Enter Room</button>
+    <button id="showLanBtn" class="ui-btn action">Play LAN WiFi</button>
+    <button id="backFromRoomSelectBtn" class="ui-btn secondary">Back</button>
+  </div>
+
+  <div id="enterRoomMenu" class="menu-screen" style="display:none;">
+    <h1 style="color: var(--gold);">Enter Room</h1>
     <div class="setting-group">
       <input type="text" id="roomCodeInput" placeholder="ROOM CODE" maxlength="15">
     </div>
     <button id="joinRoomBtn" class="ui-btn">Join Match</button>
-    <button id="backFromRoomBtn" class="ui-btn secondary">Back</button>
+    <button id="backFromEnterBtn" class="ui-btn secondary">Back</button>
+  </div>
+
+  <div id="lanMenu" class="menu-screen" style="display:none;">
+    <h1 style="color: var(--accent);">LAN WiFi Mode</h1>
+    <div class="info-box">
+        <span style="color:var(--gold);">Zero Ping Offline Setup:</span><br><br>
+        1. Connect ALL devices to the same Wi-Fi router.<br>
+        2. The Host runs the Node server on their laptop.<br>
+        3. The Host finds their IPv4 address (e.g., 192.168.1.15).<br>
+        4. Players type <span style="color:var(--accent);">http://[HOST-IP]:3000</span> into their browser to join.
+    </div>
+    <button id="backFromLanBtn" class="ui-btn secondary">Got It</button>
   </div>
 
   <div id="settingsMenu" class="menu-screen" style="display:none;">
@@ -119,7 +142,9 @@
     const menus = { 
       login: document.getElementById('loginScreen'), 
       main: document.getElementById('mainMenu'), 
-      room: document.getElementById('roomMenu'),
+      roomSelect: document.getElementById('roomSelectMenu'),
+      enterRoom: document.getElementById('enterRoomMenu'),
+      lan: document.getElementById('lanMenu'),
       settings: document.getElementById('settingsMenu'), 
       death: document.getElementById('deathScreen') 
     };
@@ -128,18 +153,9 @@
     const leaderboardPanel = document.getElementById('leaderboardPanel');
     const authBtn = document.getElementById('authBtn'); 
     
-    const onlineBtn = document.getElementById('onlineBtn');
-    const roomMenuBtn = document.getElementById('roomMenuBtn');
-    const settingsBtn = document.getElementById('settingsBtn'); 
-    
-    const joinRoomBtn = document.getElementById('joinRoomBtn');
-    const backFromRoomBtn = document.getElementById('backFromRoomBtn');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-    const respawnBtn = document.getElementById('respawnBtn'); const backMenuBtn = document.getElementById('backMenuBtn');
-    const colorBtns = document.querySelectorAll('.color-btn');
-
     let socket = null; let networkPlayers = {}; let networkBullets = []; let npcs = []; let isOnline = false; let lastSyncTime = 0;
     let isPublicMode = true; 
+    let currentRoomCode = "";
     
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = []; let currentZoom = 1.0;
@@ -221,74 +237,110 @@
 
     initNetwork();
 
+    // ── UI NAVIGATION LOGIC ── //
+
     authBtn.addEventListener('click', () => {
       const name = document.getElementById('loginName').value.trim(); 
       const status = document.getElementById('loginStatus');
       if (!name) { status.innerText = "Callsign required."; status.style.color = "#e74c3c"; return; }
-      
       status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f";
       socket.emit('login', { name }, (res) => { 
         if (res.success) {
           myPlayer.name = name; 
           menus.login.style.display = 'none'; 
           menus.main.style.display = 'flex'; 
-          leaderboardPanel.style.display = 'none'; // Ensure it's hidden out of the gate
+          leaderboardPanel.style.display = 'none';
         } 
       });
     });
 
-    onlineBtn.addEventListener('click', () => {
-      isPublicMode = true; 
+    // Main Menu Buttons
+    document.getElementById('onlineBtn').addEventListener('click', () => {
+      isPublicMode = true; currentRoomCode = "";
       socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, (res) => {
           networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
-          menus.main.style.display = 'none'; 
-          leaderboardPanel.style.display = 'none'; // Hides scoreboard during gameplay
-          canvas.style.display = 'block';
+          menus.main.style.display = 'none'; canvas.style.display = 'block';
           resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
       });
     });
 
-    roomMenuBtn.addEventListener('click', () => {
-      menus.main.style.display = 'none'; menus.room.style.display = 'flex';
-    });
-    
-    backFromRoomBtn.addEventListener('click', () => {
-      menus.room.style.display = 'none'; menus.main.style.display = 'flex';
+    document.getElementById('roomMenuBtn').addEventListener('click', () => {
+      menus.main.style.display = 'none'; menus.roomSelect.style.display = 'flex';
     });
 
-    joinRoomBtn.addEventListener('click', () => {
-      const rCode = document.getElementById('roomCodeInput').value.trim();
-      if(!rCode) return;
-      
-      isPublicMode = false; 
-      socket.emit('joinGame', { room: rCode, color: myPlayer.color }, (res) => {
-          networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
-          menus.room.style.display = 'none'; 
-          leaderboardPanel.style.display = 'none'; // Hides scoreboard during gameplay
-          canvas.style.display = 'block';
-          resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
-      });
+    document.getElementById('settingsBtn').addEventListener('click', () => { 
+        menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; 
     });
 
-    settingsBtn.addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
-    saveSettingsBtn.addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
-    colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
+    // Room Select Buttons
+    document.getElementById('createRoomBtn').addEventListener('click', () => {
+        isPublicMode = false;
+        // Generate random 5-letter room code
+        currentRoomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+        socket.emit('joinGame', { room: currentRoomCode, color: myPlayer.color }, (res) => {
+            networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
+            menus.roomSelect.style.display = 'none'; canvas.style.display = 'block';
+            resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
+        });
+    });
+
+    document.getElementById('showEnterRoomBtn').addEventListener('click', () => {
+        menus.roomSelect.style.display = 'none'; menus.enterRoom.style.display = 'flex';
+    });
+
+    document.getElementById('showLanBtn').addEventListener('click', () => {
+        menus.roomSelect.style.display = 'none'; menus.lan.style.display = 'flex';
+    });
+
+    document.getElementById('backFromRoomSelectBtn').addEventListener('click', () => {
+        menus.roomSelect.style.display = 'none'; menus.main.style.display = 'flex';
+    });
+
+    // Enter Room Buttons
+    document.getElementById('joinRoomBtn').addEventListener('click', () => {
+        const rCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+        if(!rCode) return;
+        isPublicMode = false; currentRoomCode = rCode;
+        socket.emit('joinGame', { room: rCode, color: myPlayer.color }, (res) => {
+            networkPlayers = res.currentPlayers; delete networkPlayers[socket.id];
+            menus.enterRoom.style.display = 'none'; canvas.style.display = 'block';
+            resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock();
+        });
+    });
+
+    document.getElementById('backFromEnterBtn').addEventListener('click', () => {
+        menus.enterRoom.style.display = 'none'; menus.roomSelect.style.display = 'flex';
+    });
+
+    // LAN Info Button
+    document.getElementById('backFromLanBtn').addEventListener('click', () => {
+        menus.lan.style.display = 'none'; menus.roomSelect.style.display = 'flex';
+    });
+
+    // Avatar Settings
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => { 
+        menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; 
+    });
     
-    backMenuBtn.addEventListener('click', () => { 
+    // Death Screen
+    document.getElementById('backMenuBtn').addEventListener('click', () => { 
         menus.death.style.display = 'none'; 
         menus.main.style.display = 'flex'; 
-        leaderboardPanel.style.display = 'none'; // Hides scoreboard when backing out to menu
+        leaderboardPanel.style.display = 'none'; 
     });
     
-    respawnBtn.addEventListener('click', () => { 
-        menus.death.style.display = 'none'; 
-        leaderboardPanel.style.display = 'none'; // Hides scoreboard upon respawning
-        canvas.style.display = 'block'; 
-        
-        socket.emit('joinGame', { room: isPublicMode ? 'GLOBAL_PUBLIC' : document.getElementById('roomCodeInput').value.trim(), color: myPlayer.color }, () => {
+    document.getElementById('respawnBtn').addEventListener('click', () => { 
+        menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; 
+        socket.emit('joinGame', { room: isPublicMode ? 'GLOBAL_PUBLIC' : currentRoomCode, color: myPlayer.color }, () => {
             resetRun(); if(!isTouchMode) canvas.requestPointerLock(); 
         });
     });
+
+    const colorBtns = document.querySelectorAll('.color-btn');
+    colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
+
+
+    // ── GAME LOGIC ── //
 
     function resetRun() {
       isPlaying = true;
@@ -304,11 +356,7 @@
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
-      if (isPublicMode) {
-          npcs = spawnNPCs(6); 
-      } else {
-          npcs = []; 
-      }
+      if (isPublicMode) { npcs = spawnNPCs(6); } else { npcs = []; }
       
       buildMap(); initParticles(); gameLoop();
     }
@@ -323,7 +371,7 @@
       document.getElementById('finalKillsText').innerText = `YOUR STREAK: ${myPlayer.kills}`;
       canvas.style.display = 'none'; 
       menus.death.style.display = 'flex'; 
-      leaderboardPanel.style.display = 'block'; // THIS is the only time the leaderboard shows up now!
+      leaderboardPanel.style.display = 'block'; 
     }
 
     function initParticles() { particles = []; for (let i = 0; i < maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 }); }
@@ -560,8 +608,19 @@
       for (let c of coinParticles) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, c.opacity)); ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore(); }
       
       ctx.restore(); 
-
+      
+      // HUD UI
       const isMob = canvas.width < 768; const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22; const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8); const y1 = isMob ? 10 : 22, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
+      
+      // NEW: Show Room Code on Screen for Private Matches
+      if (!isPublicMode && currentRoomCode) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width/2 - 100, 10, 200, 30);
+          ctx.fillStyle = 'var(--gold)'; ctx.font = 'bold 16px "Share Tech Mono", monospace'; ctx.textAlign = 'center';
+          ctx.fillText(`ROOM: ${currentRoomCode}`, canvas.width/2, 30);
+          ctx.restore();
+      }
+
       drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
       if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
       const jY = myPlayer.shield > 0 ? y3 : y2; const aY = jY + gap, kY = aY + gap, wY = kY + gap; let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
