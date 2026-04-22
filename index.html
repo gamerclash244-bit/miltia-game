@@ -44,6 +44,71 @@
     .lb-rank { font-weight: 700; color: var(--gold); width: 34px; }
     #finalKillsText { font-size: 2rem; margin-bottom: 32px; color: var(--gold); letter-spacing: 3px; }
     .info-box { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 5px; border: 1px solid var(--accent); max-width: 500px; text-align: left; font-family: 'Share Tech Mono', monospace; line-height: 1.6; margin-bottom: 20px;}
+    /* ── ROOM CREATION CONFIG ── */
+    .config-row { display: flex; flex-direction: column; align-items: center; margin: 8px 0; width: 290px; }
+    .config-row label { font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: #7f8c8d; text-align: left; width: 100%; margin-bottom: 5px; letter-spacing: 1px; }
+    .config-row select { padding: 10px 14px; font-size: 1rem; font-family: 'Share Tech Mono', monospace; border-radius: 3px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: white; width: 100%; outline: none; }
+    .config-row select option { background: #0d1117; }
+    .toggle-row { display: flex; align-items: center; gap: 12px; width: 290px; margin: 8px 0; }
+    .toggle-row label { font-family: 'Share Tech Mono', monospace; font-size: 0.85rem; color: #bdc3c7; flex: 1; }
+    .toggle-switch { position: relative; width: 48px; height: 26px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: rgba(255,255,255,0.1); border-radius: 13px; cursor: pointer; transition: 0.2s; border: 1px solid rgba(255,255,255,0.15); }
+    .toggle-slider:before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 2px; background: #7f8c8d; border-radius: 50%; transition: 0.2s; }
+    input:checked + .toggle-slider { background: var(--accent); border-color: var(--accent); }
+    input:checked + .toggle-slider:before { transform: translateX(22px); background: white; }
+
+    /* ── LOBBY SCREEN ── */
+    #roomLobbyMenu { overflow-y: auto; gap: 0; padding: 20px 0; }
+    .lobby-code-box { background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.4); border-radius: 4px; padding: 10px 24px; margin-bottom: 10px; cursor: pointer; transition: background 0.2s; text-align: center; }
+    .lobby-code-box:hover { background: rgba(241,196,15,0.2); }
+    .lobby-code-label { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: #7f8c8d; letter-spacing: 2px; margin-bottom: 2px; }
+    .lobby-code-val { font-family: 'Share Tech Mono', monospace; font-size: 1.7rem; color: var(--gold); letter-spacing: 8px; font-weight: 700; }
+    .lobby-config-line { font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: #55efc4; letter-spacing: 1px; margin-bottom: 12px; }
+    #lobbyPlayerList { width: 340px; max-height: 200px; overflow-y: auto; margin-bottom: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; padding: 8px; }
+    .lobby-player-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 3px; margin-bottom: 4px; background: rgba(255,255,255,0.04); }
+    .lobby-player-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .lobby-player-name { flex: 1; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 1rem; }
+    .lobby-badge { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; padding: 2px 7px; border-radius: 2px; font-weight: 700; letter-spacing: 1px; }
+    .badge-host { background: rgba(241,196,15,0.2); color: var(--gold); border: 1px solid rgba(241,196,15,0.4); }
+    .badge-ready { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.4); }
+    .badge-waiting { background: rgba(127,140,141,0.2); color: #7f8c8d; border: 1px solid rgba(127,140,141,0.3); }
+    .badge-red { background: rgba(255,71,87,0.2); color: #ff4757; border: 1px solid rgba(255,71,87,0.4); }
+    .badge-blue { background: rgba(52,152,219,0.2); color: #3498db; border: 1px solid rgba(52,152,219,0.4); }
+    .kick-btn { background: none; border: 1px solid rgba(255,71,87,0.4); color: #ff4757; border-radius: 2px; padding: 2px 7px; font-size: 0.65rem; font-family: 'Share Tech Mono', monospace; cursor: pointer; transition: background 0.15s; }
+    .kick-btn:hover { background: rgba(255,71,87,0.2); }
+    #lobbyStatusMsg { font-family: 'Share Tech Mono', monospace; font-size: 0.82rem; color: #7f8c8d; margin-bottom: 6px; min-height: 18px; }
+
+    /* ── WIN SCREEN ── */
+    #winScreen h1 { color: var(--gold); }
+    #winScreen.team-red-win h1 { color: #ff4757; }
+    #winScreen.team-blue-win h1 { color: #3498db; }
+    #winSubtitle { font-family: 'Share Tech Mono', monospace; font-size: 1rem; color: #7f8c8d; letter-spacing: 2px; margin-bottom: 20px; }
+    #winScoreList { width: 340px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 12px; margin-bottom: 20px; }
+    .win-score-row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .win-score-row:last-child { border-bottom: none; }
+    .win-score-rank { font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--gold); width: 28px; }
+    .win-score-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .win-score-name { flex: 1; font-weight: 700; font-size: 1rem; }
+    .win-score-kills { font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: #55efc4; }
+
+    /* ── MATCH HUD ELEMENTS ── */
+    #matchTimerHUD { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-family: 'Share Tech Mono', monospace; font-size: 1.2rem; color: white; background: rgba(0,0,0,0.6); padding: 4px 18px; border-radius: 3px; display: none; z-index: 5; }
+    #matchTimerHUD.urgent { color: #ff4757; animation: pulse 0.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+    #teamHUD { position: absolute; top: 48px; left: 50%; transform: translateX(-50%); font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; padding: 3px 12px; border-radius: 2px; display: none; z-index: 5; }
+    #teamHUD.red { background: rgba(255,71,87,0.25); color: #ff4757; border: 1px solid rgba(255,71,87,0.4); }
+    #teamHUD.blue { background: rgba(52,152,219,0.25); color: #3498db; border: 1px solid rgba(52,152,219,0.4); }
+    #killGoalHUD { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-family: 'Share Tech Mono', monospace; font-size: 1rem; color: white; background: rgba(0,0,0,0.6); padding: 4px 16px; border-radius: 3px; display: none; z-index: 5; }
+    #roomMiniLeaderboard { position: absolute; right: 24px; top: 80px; width: 190px; background: rgba(12,18,26,0.92); border: 1px solid rgba(85,239,196,0.25); border-radius: 4px; padding: 10px; display: none; z-index: 5; }
+    #roomMiniLeaderboard h4 { margin: 0 0 8px 0; font-size: 0.7rem; color: #55efc4; letter-spacing: 3px; font-family: 'Share Tech Mono', monospace; text-align: center; }
+    .rml-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 0.82rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .rml-row:last-child { border-bottom: none; }
+    .rml-rank { color: var(--gold); font-family: 'Share Tech Mono', monospace; width: 18px; font-size: 0.72rem; }
+    .rml-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .rml-name { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rml-kills { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: #55efc4; }
+
     @media (max-width: 800px) {
       .menu-screen { justify-content: flex-start; padding-top: 5vh; height: 100vh; overflow: hidden; }
       h1 { font-size: 2.4rem; letter-spacing: 3px; margin-bottom: 5px; }
@@ -51,6 +116,10 @@
       button.ui-btn, input[type="text"], input[type="password"] { width: 260px; }
       #leaderboardPanel { right: auto; top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); width: 92%; max-width: 360px; max-height: 35vh; overflow-y: auto; padding: 15px; }
       .info-box { max-width: 90%; font-size: 0.85rem; }
+      #lobbyPlayerList { width: 94%; }
+      #winScoreList { width: 94%; }
+      #roomMiniLeaderboard { right: 8px; top: 70px; width: 150px; }
+      #matchTimerHUD, #killGoalHUD { font-size: 0.9rem; }
     }
   </style>
 </head>
@@ -77,6 +146,7 @@
     <button id="settingsBtn" class="ui-btn secondary">Avatar</button>
   </div>
 
+  <!-- ROOM PLAY SELECT -->
   <div id="roomSelectMenu" class="menu-screen" style="display:none;">
     <h1 style="color: var(--gold);">Room Play</h1>
     <p class="subtitle">[ PRIVATE ESPORTS MATCH ]</p>
@@ -86,11 +156,81 @@
     <button id="backFromRoomSelectBtn" class="ui-btn secondary">Back</button>
   </div>
 
+  <!-- CREATE ROOM CONFIG -->
+  <div id="createRoomMenu" class="menu-screen" style="display:none;">
+    <h1 style="color: var(--gold); font-size:2.4rem;">Configure Room</h1>
+    <p class="subtitle">[ SET MATCH RULES ]</p>
+    <div class="config-row">
+      <label>ROOM PASSWORD (OPTIONAL)</label>
+      <input type="password" id="createRoomPassword" placeholder="Leave blank = open room" maxlength="16">
+    </div>
+    <div class="config-row">
+      <label>MATCH MODE</label>
+      <select id="createRoomMode">
+        <option value="kills">Kill Race — First to reach kill goal</option>
+        <option value="time">Timed — Most kills when timer ends</option>
+      </select>
+    </div>
+    <div class="config-row" id="killGoalRow">
+      <label>KILL GOAL</label>
+      <select id="createRoomKillGoal">
+        <option value="5">5 kills</option>
+        <option value="10" selected>10 kills</option>
+        <option value="15">15 kills</option>
+        <option value="20">20 kills</option>
+        <option value="30">30 kills</option>
+      </select>
+    </div>
+    <div class="config-row" id="durationRow" style="display:none;">
+      <label>MATCH DURATION</label>
+      <select id="createRoomDuration">
+        <option value="120">2 minutes</option>
+        <option value="180" selected>3 minutes</option>
+        <option value="300">5 minutes</option>
+        <option value="600">10 minutes</option>
+      </select>
+    </div>
+    <div class="toggle-row">
+      <label>TEAM MODE (2 Teams)</label>
+      <label class="toggle-switch"><input type="checkbox" id="createRoomTeams"><span class="toggle-slider"></span></label>
+    </div>
+    <button id="confirmCreateRoomBtn" class="ui-btn" style="margin-top:16px;">Create Room</button>
+    <button id="backFromCreateRoomBtn" class="ui-btn secondary">Back</button>
+  </div>
+
+  <!-- ENTER ROOM -->
   <div id="enterRoomMenu" class="menu-screen" style="display:none;">
     <h1 style="color: var(--gold);">Enter Room</h1>
-    <div class="setting-group"><input type="text" id="roomCodeInput" placeholder="ROOM CODE" maxlength="15"></div>
+    <div class="setting-group">
+      <input type="text" id="roomCodeInput" placeholder="ROOM CODE" maxlength="15">
+      <input type="password" id="roomPasswordInput" placeholder="PASSWORD (if required)" maxlength="16">
+    </div>
+    <p id="joinRoomError" style="font-family:'Share Tech Mono',monospace;font-size:0.85rem;color:#ff4757;min-height:18px;margin:4px 0;"></p>
     <button id="joinRoomBtn" class="ui-btn">Join Match</button>
     <button id="backFromEnterBtn" class="ui-btn secondary">Back</button>
+  </div>
+
+  <!-- ROOM LOBBY -->
+  <div id="roomLobbyMenu" class="menu-screen" style="display:none;">
+    <h1 style="color: var(--gold); font-size:2rem; margin-bottom:4px;">LOBBY</h1>
+    <div class="lobby-code-box" id="lobbyCopyBox" title="Click to copy room code">
+      <div class="lobby-code-label">ROOM CODE — TAP TO COPY</div>
+      <div class="lobby-code-val" id="lobbyCodeText">XXXXX</div>
+    </div>
+    <div class="lobby-config-line" id="lobbyConfigLine">Kills · FFA · First to 10</div>
+    <div id="lobbyPlayerList"></div>
+    <p id="lobbyStatusMsg">Waiting for players...</p>
+    <button id="readyBtn" class="ui-btn action">Ready Up</button>
+    <button id="startMatchBtn" class="ui-btn" style="display:none;">Start Match ▶</button>
+    <button id="lobbyLeaveBtn" class="ui-btn secondary">Leave Room</button>
+  </div>
+
+  <!-- WIN SCREEN -->
+  <div id="winScreen" class="menu-screen" style="display:none;">
+    <h1 id="winTitle">VICTORY</h1>
+    <p id="winSubtitle">MATCH COMPLETE</p>
+    <div id="winScoreList"></div>
+    <button id="winMainMenuBtn" class="ui-btn secondary">Main Menu</button>
   </div>
 
   <div id="lanMenu" class="menu-screen" style="display:none;">
@@ -120,7 +260,17 @@
     <table class="lb-table"><thead><tr><th>#</th><th>Callsign</th><th style="text-align:center;">1-Life</th><th style="text-align:right;">Total</th></tr></thead><tbody id="leaderboardBody"><tr><td colspan="4" style="text-align:center; padding-top:16px; color:#555;">Loading data...</td></tr></tbody></table>
   </div>
 
-  <div id="deathScreen" class="menu-screen" style="display:none;"><h1 class="death-title">K.I.A.</h1><p id="finalKillsText">STREAK: 0</p><button id="respawnBtn" class="ui-btn">Respawn</button><button id="backMenuBtn" class="ui-btn secondary">Main Menu</button></div>
+  <div id="deathScreen" class="menu-screen" style="display:none;">
+    <h1 class="death-title">K.I.A.</h1>
+    <p id="finalKillsText">STREAK: 0</p>
+    <button id="respawnBtn" class="ui-btn">Respawn</button>
+    <button id="backMenuBtn" class="ui-btn secondary">Main Menu</button>
+  </div>
+
+  <div id="matchTimerHUD"></div>
+  <div id="killGoalHUD"></div>
+  <div id="teamHUD"></div>
+  <div id="roomMiniLeaderboard"><h4>ROOM KILLS</h4><div id="rmlBody"></div></div>
 
   <canvas id="gameCanvas"></canvas>
 
@@ -135,12 +285,15 @@
       sniper:  { damage: 65, fireRate: 1200, ammo: 5,  speed: 26, spread: 0, pellets: 1, reload: 2500, bulletColor: '#a29bfe', barrelColor: '#a29bfe', barrelLen: 54, barrelH: 6, name: 'SNIPER', crateColor: '#a29bfe', zoom: 1.4 },
     };
 
-    const menus = { login: document.getElementById('loginScreen'), main: document.getElementById('mainMenu'), roomSelect: document.getElementById('roomSelectMenu'), enterRoom: document.getElementById('enterRoomMenu'), lan: document.getElementById('lanMenu'), settings: document.getElementById('settingsMenu'), death: document.getElementById('deathScreen') };
+    const menus = { login: document.getElementById('loginScreen'), main: document.getElementById('mainMenu'), roomSelect: document.getElementById('roomSelectMenu'), createRoom: document.getElementById('createRoomMenu'), enterRoom: document.getElementById('enterRoomMenu'), lan: document.getElementById('lanMenu'), settings: document.getElementById('settingsMenu'), death: document.getElementById('deathScreen'), lobby: document.getElementById('roomLobbyMenu'), win: document.getElementById('winScreen') };
     const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d');
     const leaderboardPanel = document.getElementById('leaderboardPanel');
     const authBtn = document.getElementById('authBtn'); 
     
     let socket = null; let networkPlayers = {}; let networkBullets = []; let npcs = []; let isOnline = false; let lastSyncTime = 0;
+    let isHost = false; let myTeam = null; let matchState = 'none'; // 'none'|'waiting'|'playing'|'ended'
+    let matchTimeLeft = 0; let roomKillGoal = 10; let roomMode = 'kills'; let isTeamMode = false;
+    let roomMiniLB = []; // mini leaderboard for room match
     let isPublicMode = true; let currentRoomCode = "";
     
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
@@ -159,9 +312,11 @@
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
     let damageNumbers = []; let screenShake = 0; let killFeed = []; let coinParticles = []; let streakAnnounce = { text: '', opacity: 0 }; let weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
 
+    function hideAllMenus() { Object.values(menus).forEach(m => { if (m) m.style.display = 'none'; }); leaderboardPanel.style.display = 'none'; document.getElementById('matchTimerHUD').style.display = 'none'; document.getElementById('killGoalHUD').style.display = 'none'; document.getElementById('teamHUD').style.display = 'none'; document.getElementById('roomMiniLeaderboard').style.display = 'none'; }
+
     function returnToLogin() {
       document.exitPointerLock(); document.getElementById('kickedOverlay').classList.remove('visible'); canvas.style.display = 'none';
-      isPlaying = false; Object.values(menus).forEach(m => m.style.display = 'none'); leaderboardPanel.style.display = 'none';
+      isPlaying = false; hideAllMenus();
       const status = document.getElementById('loginStatus'); status.innerText = 'Server Online. Please Authenticate.'; status.style.color = '#2ecc71';
       authBtn.style.display = 'block'; menus.login.style.display = 'flex';
     }
@@ -184,20 +339,91 @@
         socket.on('networkBullet', (b) => { networkBullets.push(b); });
         socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
         socket.on('reconnect_failed', () => { loginStatus.innerText = "Server unreachable."; loginStatus.style.color = "#e74c3c"; isOnline = false; });
-        socket.on('kicked', (data) => { isPlaying = false; document.exitPointerLock(); document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.'; document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none'; });
-        socket.on('leaderboardUpdate', (topPlayers) => { let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak}</td><td style="text-align:right;">${p.totalKills}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
+        socket.on('kicked', (data) => { isPlaying = false; document.exitPointerLock(); document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.'; document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none'; hideAllMenus(); });
+        socket.on('leaderboardUpdate', (topPlayers) => { let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak||0}</td><td style="text-align:right;">${p.totalKills||0}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
         
         socket.on('npcSync', (serverBots) => {
-            if(isPublicMode) npcs = serverBots; 
+            if (isPublicMode) npcs = serverBots;
         });
         
         socket.on('botDied', (data) => {
             if (data.killerId === socket.id) {
                 myPlayer.kills++; myPlayer.killStreak++; checkStreak(myPlayer.killStreak);
                 socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
-                spawnCoins(data.x + 20, data.y + 20); 
+                spawnCoins(data.x + 20, data.y + 20);
             }
             killFeed.push({ text: `🤖 ${data.killerName} → ${data.botName}`, timer: 5.0, color: (data.killerId === socket.id ? '#ff4757' : '#bdc3c7') });
+        });
+
+        // ── ROOM LOBBY EVENTS ──
+        socket.on('lobbyUpdate', (state) => {
+            if (!state) return;
+            matchState = state.state;
+            renderLobby(state);
+        });
+
+        socket.on('matchStart', (state) => {
+            matchState = 'playing';
+            hideAllMenus();
+            canvas.style.display = 'block';
+            if (state.mode === 'time') {
+                matchTimeLeft = state.duration;
+                document.getElementById('matchTimerHUD').style.display = 'block';
+                document.getElementById('matchTimerHUD').innerText = formatTime(matchTimeLeft);
+                document.getElementById('killGoalHUD').style.display = 'none';
+            } else {
+                roomKillGoal = state.killGoal;
+                document.getElementById('killGoalHUD').style.display = 'block';
+                document.getElementById('killGoalHUD').innerText = `KILLS: 0 / ${roomKillGoal}`;
+                document.getElementById('matchTimerHUD').style.display = 'none';
+            }
+            if (state.teamsEnabled && myTeam) {
+                const th = document.getElementById('teamHUD');
+                th.innerText = `TEAM ${myTeam.toUpperCase()}`;
+                th.className = myTeam; th.style.display = 'block';
+            }
+            document.getElementById('roomMiniLeaderboard').style.display = 'block';
+            resetRun();
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+            if (!isTouchMode) canvas.requestPointerLock();
+        });
+
+        socket.on('matchTimerUpdate', (data) => {
+            matchTimeLeft = data.timeLeft;
+            const el = document.getElementById('matchTimerHUD');
+            el.innerText = formatTime(matchTimeLeft);
+            el.className = matchTimeLeft <= 10 ? 'urgent' : '';
+        });
+
+        socket.on('roomLeaderboardUpdate', (scores) => {
+            roomMiniLB = scores;
+            renderMiniLeaderboard(scores);
+            // Update kill goal HUD
+            if (roomMode === 'kills') {
+                const myEntry = scores.find(s => s.name === myPlayer.name);
+                const myKills = myEntry ? myEntry.kills : 0;
+                document.getElementById('killGoalHUD').innerText = `KILLS: ${myKills} / ${roomKillGoal}`;
+            }
+        });
+
+        socket.on('matchEnd', (data) => {
+            matchState = 'ended';
+            isPlaying = false; document.exitPointerLock();
+            canvas.style.display = 'none';
+            document.getElementById('matchTimerHUD').style.display = 'none';
+            document.getElementById('killGoalHUD').style.display = 'none';
+            document.getElementById('teamHUD').style.display = 'none';
+            document.getElementById('roomMiniLeaderboard').style.display = 'none';
+            showWinScreen(data);
+        });
+
+        socket.on('hostChanged', (data) => {
+            if (data.newHostId === socket.id) {
+                isHost = true;
+                document.getElementById('startMatchBtn').style.display = 'block';
+                document.getElementById('readyBtn').style.display = 'none';
+                killFeed.push({ text: `👑 You are now the host`, timer: 5.0, color: '#f1c40f' });
+            }
         });
 
       } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
@@ -207,21 +433,238 @@
 
     authBtn.addEventListener('click', () => { const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim(); const status = document.getElementById('loginStatus'); if (!name || !pin) { status.innerText = "Callsign and PIN required."; status.style.color = "#e74c3c"; return; } status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f"; socket.emit('login', { name, pin }, (res) => { if (res.success) { myPlayer.name = name; menus.login.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; } else { status.innerText = res.message || "Authentication failed."; status.style.color = "#e74c3c"; } }); });
 
-    document.getElementById('onlineBtn').addEventListener('click', () => { isPublicMode = true; currentRoomCode = ""; socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, (res) => { networkPlayers = res.currentPlayers; delete networkPlayers[socket.id]; menus.main.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock(); }); });
+    // ── MAIN MENU ──
+    document.getElementById('onlineBtn').addEventListener('click', () => { isPublicMode = true; currentRoomCode = ""; socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, (res) => { networkPlayers = res.currentPlayers || {}; delete networkPlayers[socket.id]; hideAllMenus(); canvas.style.display = 'block'; leaderboardPanel.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock(); }); });
     document.getElementById('roomMenuBtn').addEventListener('click', () => { menus.main.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
     document.getElementById('settingsBtn').addEventListener('click', () => { menus.main.style.display = 'none'; menus.settings.style.display = 'flex'; });
-    document.getElementById('createRoomBtn').addEventListener('click', () => { isPublicMode = false; currentRoomCode = Math.random().toString(36).substring(2, 7).toUpperCase(); socket.emit('joinGame', { room: currentRoomCode, color: myPlayer.color }, (res) => { networkPlayers = res.currentPlayers; delete networkPlayers[socket.id]; menus.roomSelect.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock(); }); });
+
+    // ── ROOM SELECT ──
+    document.getElementById('createRoomBtn').addEventListener('click', () => { menus.roomSelect.style.display = 'none'; menus.createRoom.style.display = 'flex'; });
     document.getElementById('showEnterRoomBtn').addEventListener('click', () => { menus.roomSelect.style.display = 'none'; menus.enterRoom.style.display = 'flex'; });
     document.getElementById('showLanBtn').addEventListener('click', () => { menus.roomSelect.style.display = 'none'; menus.lan.style.display = 'flex'; });
     document.getElementById('backFromRoomSelectBtn').addEventListener('click', () => { menus.roomSelect.style.display = 'none'; menus.main.style.display = 'flex'; });
-    document.getElementById('joinRoomBtn').addEventListener('click', () => { const rCode = document.getElementById('roomCodeInput').value.trim().toUpperCase(); if(!rCode) return; isPublicMode = false; currentRoomCode = rCode; socket.emit('joinGame', { room: rCode, color: myPlayer.color }, (res) => { networkPlayers = res.currentPlayers; delete networkPlayers[socket.id]; menus.enterRoom.style.display = 'none'; canvas.style.display = 'block'; resetRun(); if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {}); if (!isTouchMode) canvas.requestPointerLock(); }); });
+
+    // ── CREATE ROOM CONFIG ──
+    document.getElementById('createRoomMode').addEventListener('change', function() {
+        document.getElementById('killGoalRow').style.display = this.value === 'kills' ? 'flex' : 'none';
+        document.getElementById('durationRow').style.display = this.value === 'time' ? 'flex' : 'none';
+    });
+    document.getElementById('backFromCreateRoomBtn').addEventListener('click', () => { menus.createRoom.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
+    document.getElementById('confirmCreateRoomBtn').addEventListener('click', () => {
+        const password = document.getElementById('createRoomPassword').value.trim();
+        const mode = document.getElementById('createRoomMode').value;
+        const killGoal = parseInt(document.getElementById('createRoomKillGoal').value) || 10;
+        const duration = parseInt(document.getElementById('createRoomDuration').value) || 180;
+        const teamsEnabled = document.getElementById('createRoomTeams').checked;
+        socket.emit('createRoom', { password, mode, killGoal, duration, teamsEnabled, color: myPlayer.color }, (res) => {
+            if (!res.success) { alert(res.message || 'Failed to create room.'); return; }
+            isPublicMode = false; isHost = true; myTeam = null; matchState = 'waiting';
+            currentRoomCode = res.roomCode;
+            roomMode = mode; roomKillGoal = killGoal;
+            isTeamMode = teamsEnabled;
+            networkPlayers = res.currentPlayers || {}; delete networkPlayers[socket.id];
+            menus.createRoom.style.display = 'none';
+            showLobby(res.lobbyState, res.roomCode, true);
+        });
+    });
+
+    // ── ENTER ROOM ──
+    document.getElementById('joinRoomBtn').addEventListener('click', () => {
+        const rCode = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+        const password = document.getElementById('roomPasswordInput').value.trim();
+        const errEl = document.getElementById('joinRoomError');
+        if (!rCode) { errEl.innerText = 'Enter a room code.'; return; }
+        errEl.innerText = '';
+        isPublicMode = false; isHost = false; myTeam = null; matchState = 'waiting';
+        socket.emit('joinRoomRequest', { room: rCode, password, color: myPlayer.color }, (res) => {
+            if (!res.success) { errEl.innerText = res.message || 'Could not join room.'; return; }
+            currentRoomCode = res.roomCode;
+            roomMode = res.lobbyState?.mode || 'kills';
+            roomKillGoal = res.lobbyState?.killGoal || 10;
+            isTeamMode = res.lobbyState?.teamsEnabled || false;
+            if (res.lobbyState?.teams) {
+                if (res.lobbyState.teams.red.includes(socket.id)) myTeam = 'red';
+                else if (res.lobbyState.teams.blue.includes(socket.id)) myTeam = 'blue';
+            }
+            networkPlayers = res.currentPlayers || {}; delete networkPlayers[socket.id];
+            menus.enterRoom.style.display = 'none';
+            showLobby(res.lobbyState, res.roomCode, res.isHost);
+        });
+    });
     document.getElementById('backFromEnterBtn').addEventListener('click', () => { menus.enterRoom.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
+
+    // ── LAN ──
     document.getElementById('backFromLanBtn').addEventListener('click', () => { menus.lan.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
+
+    // ── SETTINGS ──
     document.getElementById('saveSettingsBtn').addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
-    document.getElementById('backMenuBtn').addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; });
-    document.getElementById('respawnBtn').addEventListener('click', () => { menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none'; canvas.style.display = 'block'; socket.emit('joinGame', { room: isPublicMode ? 'GLOBAL_PUBLIC' : currentRoomCode, color: myPlayer.color }, () => { resetRun(); if(!isTouchMode) canvas.requestPointerLock(); }); });
+
+    // ── LOBBY ──
+    let amIReady = false;
+    document.getElementById('readyBtn').addEventListener('click', () => {
+        amIReady = !amIReady;
+        socket.emit('setReady', amIReady);
+        document.getElementById('readyBtn').innerText = amIReady ? '✓ Ready!' : 'Ready Up';
+        document.getElementById('readyBtn').style.background = amIReady ? '#2ecc71' : '';
+    });
+    document.getElementById('startMatchBtn').addEventListener('click', () => {
+        socket.emit('startMatch', (res) => {
+            if (!res.success) { document.getElementById('lobbyStatusMsg').innerText = res.message || 'Cannot start.'; document.getElementById('lobbyStatusMsg').style.color = '#ff4757'; }
+        });
+    });
+    document.getElementById('lobbyLeaveBtn').addEventListener('click', () => {
+        amIReady = false; isHost = false; myTeam = null; matchState = 'none';
+        menus.lobby.style.display = 'none'; menus.roomSelect.style.display = 'flex';
+        // Force rejoin public to clear room server-side via disconnect handling
+        socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, () => {});
+    });
+    document.getElementById('lobbyCopyBox').addEventListener('click', () => {
+        navigator.clipboard?.writeText(currentRoomCode).then(() => {
+            const el = document.getElementById('lobbyCodeText');
+            const prev = el.innerText;
+            el.innerText = 'COPIED!'; setTimeout(() => { el.innerText = prev; }, 1200);
+        });
+    });
+
+    // ── DEATH SCREEN ──
+    document.getElementById('backMenuBtn').addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; hideAllMenus(); menus.main.style.display = 'flex'; });
+    document.getElementById('respawnBtn').addEventListener('click', () => {
+        menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none';
+        if (isPublicMode) {
+            socket.emit('joinGame', { room: 'GLOBAL_PUBLIC', color: myPlayer.color }, (res) => { networkPlayers = res.currentPlayers || {}; delete networkPlayers[socket.id]; canvas.style.display = 'block'; resetRun(); if (!isTouchMode) canvas.requestPointerLock(); });
+        } else if (matchState === 'playing') {
+            // Respawn in the active room match
+            socket.emit('respawnInRoom', { room: currentRoomCode, color: myPlayer.color, team: myTeam }, (res) => {
+                if (!res || !res.success) return;
+                networkPlayers = res.currentPlayers || {}; delete networkPlayers[socket.id];
+                canvas.style.display = 'block';
+                if (roomMode === 'time') { document.getElementById('matchTimerHUD').style.display = 'block'; document.getElementById('matchTimerHUD').innerText = formatTime(matchTimeLeft); }
+                else { document.getElementById('killGoalHUD').style.display = 'block'; }
+                if (isTeamMode && myTeam) { const th = document.getElementById('teamHUD'); th.innerText = `TEAM ${myTeam.toUpperCase()}`; th.className = myTeam; th.style.display = 'block'; }
+                document.getElementById('roomMiniLeaderboard').style.display = 'block';
+                resetRun(); if (!isTouchMode) canvas.requestPointerLock();
+            });
+        } else {
+            // Match ended while dead — go to main menu
+            hideAllMenus(); menus.main.style.display = 'flex';
+        }
+    });
+
+    // ── WIN SCREEN ──
+    document.getElementById('winMainMenuBtn').addEventListener('click', () => { hideAllMenus(); menus.main.style.display = 'flex'; amIReady = false; isHost = false; myTeam = null; matchState = 'none'; });
 
     const colorBtns = document.querySelectorAll('.color-btn'); colorBtns.forEach(btn => { btn.addEventListener('click', (e) => { colorBtns.forEach(b => b.classList.remove('selected')); e.target.classList.add('selected'); myPlayer.color = e.target.dataset.color; }); });
+
+    // ── LOBBY HELPERS ──
+    function formatTime(secs) { const m = Math.floor(secs/60); const s = secs%60; return `${m}:${s.toString().padStart(2,'0')}` ; }
+
+    function showLobby(state, roomCode, hostMode) {
+        isHost = hostMode;
+        amIReady = false;
+        hideAllMenus();
+        menus.lobby.style.display = 'flex';
+        document.getElementById('lobbyCodeText').innerText = roomCode;
+        document.getElementById('readyBtn').style.display = hostMode ? 'none' : 'block';
+        document.getElementById('readyBtn').innerText = 'Ready Up';
+        document.getElementById('readyBtn').style.background = '';
+        document.getElementById('startMatchBtn').style.display = hostMode ? 'block' : 'none';
+        if (state) renderLobby(state);
+    }
+
+    function renderLobby(state) {
+        // Config line
+        const modeStr = state.mode === 'time' ? `${formatTime(state.duration)} Timer` : `First to ${state.killGoal} kills`;
+        const teamStr = state.teamsEnabled ? '· Team Mode' : '· FFA';
+        document.getElementById('lobbyConfigLine').innerText = `${state.mode === 'time' ? 'Timed' : 'Kill Race'} ${teamStr} · ${modeStr}`;
+
+        // Player list
+        const list = document.getElementById('lobbyPlayerList');
+        list.innerHTML = '';
+        const playerIds = Object.keys(state.players || {});
+        const allNonHostReady = playerIds.filter(id => id !== state.host).every(id => state.readyPlayers.includes(id));
+        playerIds.forEach(id => {
+            const p = state.players[id];
+            const isMe = id === socket?.id;
+            const isPlayerHost = id === state.host;
+            const isReady = state.readyPlayers.includes(id);
+            const row = document.createElement('div');
+            row.className = 'lobby-player-row';
+            let badges = '';
+            if (isPlayerHost) badges += `<span class="lobby-badge badge-host">HOST</span>`;
+            else if (isReady) badges += `<span class="lobby-badge badge-ready">READY</span>`;
+            else badges += `<span class="lobby-badge badge-waiting">WAITING</span>`;
+            if (state.teamsEnabled && p.team) badges += `<span class="lobby-badge badge-${p.team}">${p.team.toUpperCase()}</span>`;
+            let kickBtn = '';
+            if (isHost && !isMe && id !== state.host) kickBtn = `<button class="kick-btn" data-id="${id}">KICK</button>`;
+            row.innerHTML = `<div class="lobby-player-dot" style="background:${p.color}"></div><div class="lobby-player-name">${p.name}${isMe?' (You)':''}</div>${badges}${kickBtn}`;
+            list.appendChild(row);
+        });
+        // Kick button handlers
+        list.querySelectorAll('.kick-btn').forEach(btn => {
+            btn.addEventListener('click', () => { socket.emit('kickPlayer', btn.dataset.id); });
+        });
+
+        // Status message
+        const statusEl = document.getElementById('lobbyStatusMsg');
+        statusEl.style.color = '#7f8c8d';
+        if (state.state === 'playing') { statusEl.innerText = 'Match in progress...'; return; }
+        if (isHost) {
+            if (playerIds.length < 2) statusEl.innerText = 'Waiting for players to join...';
+            else if (!allNonHostReady) statusEl.innerText = 'Waiting for all players to ready up...';
+            else { statusEl.innerText = '✓ All ready! You can start the match.'; statusEl.style.color = '#2ecc71'; }
+        } else {
+            statusEl.innerText = 'Waiting for host to start the match...';
+        }
+
+        // Update start button state
+        if (isHost) {
+            const startBtn = document.getElementById('startMatchBtn');
+            const canStart = playerIds.length >= 1 && allNonHostReady;
+            startBtn.style.opacity = canStart ? '1' : '0.5';
+        }
+    }
+
+    function renderMiniLeaderboard(scores) {
+        const top = scores.slice(0, 5);
+        let html = '';
+        top.forEach((s, i) => {
+            const rank = i === 0 ? '👑' : `${i+1}.`;
+            html += `<div class="rml-row"><div class="rml-rank">${rank}</div><div class="rml-dot" style="background:${s.color}"></div><div class="rml-name">${s.name}</div><div class="rml-kills">${s.kills}</div></div>`;
+        });
+        document.getElementById('rmlBody').innerHTML = html || '<div style="color:#555;font-size:0.75rem;text-align:center;padding:6px">No kills yet</div>';
+    }
+
+    function showWinScreen(data) {
+        hideAllMenus();
+        const ws = menus.win;
+        ws.className = 'menu-screen';
+        if (data.winTeam === 'red') ws.classList.add('team-red-win');
+        else if (data.winTeam === 'blue') ws.classList.add('team-blue-win');
+        ws.style.display = 'flex';
+
+        const titleEl = document.getElementById('winTitle');
+        const subEl = document.getElementById('winSubtitle');
+        if (data.winTeam) {
+            titleEl.innerText = `${data.winTeam.toUpperCase()} TEAM WINS`;
+            subEl.innerText = 'TEAM VICTORY';
+        } else if (data.winnerName) {
+            const isMe = data.winnerId === socket?.id;
+            titleEl.innerText = isMe ? '🏆 VICTORY' : `${data.winnerName} WINS`;
+            subEl.innerText = isMe ? `MATCH COMPLETE — YOU WON!` : 'MATCH COMPLETE';
+        } else {
+            titleEl.innerText = 'MATCH OVER';
+            subEl.innerText = 'TIME\'S UP';
+        }
+
+        const scoreList = document.getElementById('winScoreList');
+        let html = '';
+        (data.finalScores || []).forEach((s, i) => {
+            const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+            const teamBadge = s.team ? `<span class="lobby-badge badge-${s.team}" style="margin-left:6px">${s.team.toUpperCase()}</span>` : '';
+            html += `<div class="win-score-row"><div class="win-score-rank">${rank}</div><div class="win-score-dot" style="background:${s.color}"></div><div class="win-score-name">${s.name}${teamBadge}</div><div class="win-score-kills">${s.kills} kills</div></div>`;
+        });
+        scoreList.innerHTML = html || '<div style="color:#555;text-align:center">No data</div>';
+    }
 
     function resetRun() {
       isPlaying = true;
@@ -237,7 +680,10 @@
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
       mouseX = canvas.width / 2; mouseY = canvas.height / 2;
       
-      if (!isPublicMode) npcs = []; 
+      if (!isPublicMode) npcs = [];
+      
+      // Show leaderboard only in public mode
+      leaderboardPanel.style.display = isPublicMode ? 'block' : 'none';
       
       buildMap(); initParticles(); gameLoop();
     }
@@ -246,11 +692,30 @@
       isPlaying = false; myPlayer.health = 0; document.exitPointerLock();
       if (isOnline && socket && socket.connected) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0, weapon: myPlayer.weapon });
-        socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
+        if (isPublicMode) socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
       }
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
-      document.getElementById('finalKillsText').innerText = `YOUR STREAK: ${myPlayer.kills}`;
-      canvas.style.display = 'none'; menus.death.style.display = 'flex'; leaderboardPanel.style.display = 'block'; 
+      // Hide room match HUDs
+      document.getElementById('matchTimerHUD').style.display = 'none';
+      document.getElementById('killGoalHUD').style.display = 'none';
+      document.getElementById('teamHUD').style.display = 'none';
+      document.getElementById('roomMiniLeaderboard').style.display = 'none';
+      canvas.style.display = 'none';
+      // Update death screen based on mode
+      if (!isPublicMode && matchState === 'playing') {
+        document.getElementById('finalKillsText').innerText = `KILLS THIS MATCH: ${myPlayer.kills}`;
+        document.getElementById('respawnBtn').innerText = 'Respawn';
+        document.getElementById('respawnBtn').style.display = 'block';
+      } else if (!isPublicMode && matchState === 'ended') {
+        document.getElementById('finalKillsText').innerText = `MATCH OVER`;
+        document.getElementById('respawnBtn').style.display = 'none';
+      } else {
+        document.getElementById('finalKillsText').innerText = `YOUR STREAK: ${myPlayer.kills}`;
+        document.getElementById('respawnBtn').innerText = 'Respawn';
+        document.getElementById('respawnBtn').style.display = 'block';
+        leaderboardPanel.style.display = 'block';
+      }
+      menus.death.style.display = 'flex';
     }
 
     function initParticles() { particles = []; for (let i = 0; i < maxParticles; i++) particles.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, size: Math.random() * 3 + 1, vx: 0, vy: 0, driftOffset: Math.random() * 100 }); }
@@ -344,7 +809,17 @@
                 if (b.x>np.x && b.x<np.x+40 && b.y>np.y && b.y<np.y+40) {
                     destroyed = true; let dmg = WEAPONS[b.weapon || 'rifle'].damage; if (np.localHealth === undefined) np.localHealth = np.health; np.localHealth -= dmg;
                     damageNumbers.push({ x: np.x + 20, y: np.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
-                    if (np.localHealth <= 0 && !np.countedKill) { myPlayer.kills++; myPlayer.killStreak++; np.countedKill = true; killFeed.push({ text: `☠ YOU → ${np.name}`, timer: 5.0, color: '#ff4757' }); spawnCoins(np.x + 20, np.y + 20); checkStreak(myPlayer.killStreak); }
+                    if (np.localHealth <= 0 && !np.countedKill) { 
+                        myPlayer.kills++; myPlayer.killStreak++; np.countedKill = true; 
+                        killFeed.push({ text: `☠ YOU → ${np.name}`, timer: 5.0, color: '#ff4757' }); 
+                        spawnCoins(np.x + 20, np.y + 20); 
+                        checkStreak(myPlayer.killStreak);
+                        if (!isPublicMode && matchState === 'playing' && isOnline && socket && socket.connected) {
+                            socket.emit('reportKill', { victim: np.name });
+                        } else if (isPublicMode) {
+                            socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
+                        }
+                    }
                     break;
                 }
             }
@@ -449,7 +924,7 @@
       
       const isMob = canvas.width < 768; const HX = isMob ? 10 : 22, HW = isMob ? 140 : 200, HH = isMob ? 16 : 22; const fSize = isMob ? 10 : 13; const gap = HH + (isMob ? 6 : 8); const y1 = isMob ? 10 : 22, y2 = y1 + gap, y3 = y2 + gap, y4 = y3 + gap, y5 = y4 + gap;
       
-      if (!isPublicMode && currentRoomCode) { ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width/2 - 100, 10, 200, 30); ctx.fillStyle = 'var(--gold)'; ctx.font = 'bold 16px "Share Tech Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText(`ROOM: ${currentRoomCode}`, canvas.width/2, 30); ctx.restore(); }
+      // Room code shown via HTML HUD, not canvas (cleaner)
 
       drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
       if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
