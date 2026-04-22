@@ -71,7 +71,19 @@ class NPC {
       }
     }
 
+    // Horizontal Movement & Collision
+    let prevX = this.x;
     this.x += this.moveDir * 4; 
+    
+    platforms.forEach(obj => {
+      if (this.x < obj.x + obj.w && this.x + this.width > obj.x && 
+          this.y < obj.y + obj.h && this.y + this.height > obj.y) {
+        this.x = prevX; // Revert horizontal movement if hitting a wall
+        this.moveDir *= -1; // Make the bot turn around
+      }
+    });
+
+    // Vertical Movement, Gravity, Jumping & Collision
     this.dy += 0.35; 
     
     if ((this.target && this.target.y < this.y - 100) || this.y > 2300) {
