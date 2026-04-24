@@ -36,8 +36,10 @@
     .color-btn { width: 52px; height: 52px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; transition: transform 0.15s; }
     .color-btn:hover { transform: scale(1.1); }
     .color-btn.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 12px rgba(255,255,255,0.4); }
-    #leaderboardPanel { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 360px; background: rgba(12, 18, 26, 0.95); border: 1px solid rgba(241,196,15,0.4); border-radius: 4px; padding: 24px; color: white; z-index: 20; display: none; box-shadow: 0 0 24px rgba(241,196,15,0.15); }
-    #leaderboardPanel h3 { margin: 0 0 16px 0; font-size: 1.4rem; color: var(--gold); text-align: center; text-transform: uppercase; letter-spacing: 5px; }
+    #leaderboardPanel { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 300px; background: rgba(8, 12, 20, 0.97); border: 1px solid rgba(241,196,15,0.45); border-radius: 4px; padding: 18px; color: white; z-index: 25; display: none; box-shadow: 0 0 32px rgba(241,196,15,0.18); }
+    #leaderboardPanel h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--gold); text-align: center; text-transform: uppercase; letter-spacing: 5px; }
+    #bombBtn { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); width: 54px; height: 54px; background: rgba(30,20,0,0.85); border: 2px solid rgba(241,196,15,0.6); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.5rem; z-index: 15; cursor: pointer; user-select: none; box-shadow: 0 0 12px rgba(241,196,15,0.3); }
+    #bombCount { position: absolute; top: -4px; right: -4px; background: #e74c3c; color: white; font-size: 0.65rem; font-family: 'Share Tech Mono',monospace; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; }
     .lb-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 1rem; }
     .lb-table th { border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 10px; color: #7f8c8d; font-size: 0.8rem; font-family: 'Share Tech Mono', monospace; }
     .lb-table td { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -277,6 +279,8 @@
   <div id="teamHUD"></div>
   <div id="roomMiniLeaderboard"><h4>ROOM KILLS</h4><div id="rmlBody"></div></div>
 
+  <div id="bombBtn" title="Throw Bomb [G]">💣<div id="bombCount">2</div></div>
+
   <canvas id="gameCanvas"></canvas>
 
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -299,6 +303,8 @@
     let isHost = false; let myTeam = null; let matchState = 'none'; // 'none'|'waiting'|'playing'|'ended'
     let matchTimeLeft = 0; let roomKillGoal = 10; let roomMode = 'kills'; let isTeamMode = false;
     let roomMiniLB = []; // mini leaderboard for room match
+    let publicLeaderboardData = []; // top players for canvas mini-LB
+    let bombs = []; let explosions = []; let lastBombTime = 0;
     let isPublicMode = true; let currentRoomCode = "";
     
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
@@ -345,10 +351,23 @@
         socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
         socket.on('reconnect_failed', () => { loginStatus.innerText = "Server unreachable."; loginStatus.style.color = "#e74c3c"; isOnline = false; });
         socket.on('kicked', (data) => { isPlaying = false; document.exitPointerLock(); document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.'; document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none'; hideAllMenus(); });
-        socket.on('leaderboardUpdate', (topPlayers) => { let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak||0}</td><td style="text-align:right;">${p.totalKills||0}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
+        socket.on('leaderboardUpdate', (topPlayers) => { publicLeaderboardData = topPlayers; let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak||0}</td><td style="text-align:right;">${p.totalKills||0}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
         
         socket.on('npcSync', (serverBots) => {
             if (isPublicMode) npcs = serverBots;
+        });
+
+        socket.on('networkBombExplode', (data) => {
+            if (!isPlaying) return;
+            explosions.push({ x: data.x, y: data.y, r: 0, maxR: data.radius, opacity: 1.0 });
+            const dist = Math.hypot(myPlayer.x + 20 - data.x, myPlayer.y + 20 - data.y);
+            if (dist < data.radius && data.ownerId !== socket.id && myPlayer.invincibleTimer <= Date.now() && myPlayer.health > 0) {
+                const dmg = Math.floor(data.damage * (1 - dist / data.radius));
+                if (myPlayer.shield > 0) { const abs = Math.min(myPlayer.shield, dmg); myPlayer.shield -= abs; const net = dmg - abs; if (net > 0) { myPlayer.health -= net; damageNumbers.push({ x: myPlayer.x+20, y: myPlayer.y-10, value: -net, vy: -3, opacity: 2.2, color: '#e74c3c', size: 18 }); } else { damageNumbers.push({ x: myPlayer.x+20, y: myPlayer.y-10, value: 'BLOCKED', vy: -3, opacity: 2.2, color: '#74b9ff', size: 14 }); } }
+                else { myPlayer.health -= dmg; damageNumbers.push({ x: myPlayer.x+20, y: myPlayer.y-10, value: -dmg, vy: -3, opacity: 2.2, color: '#e74c3c', size: 18 }); }
+                screenShake = 1.2;
+                if (myPlayer.health <= 0) killPlayer();
+            }
         });
         
         socket.on('botDied', (data) => {
@@ -679,7 +698,8 @@
       myPlayer.isReloading = false; myPlayer.kills = 0; myPlayer.unlimitedFuelTimer = 0;
       myPlayer.weapon = 'rifle'; myPlayer.weaponExpire = 0; myPlayer.shield = 0; myPlayer.speedBoostTimer = 0;
       myPlayer.killStreak = 0; myPlayer.invincibleTimer = Date.now() + 2500;
-      bullets = []; networkBullets = []; damageNumbers = []; killFeed = []; coinParticles = [];
+      myPlayer.bombs = 2;
+      bullets = []; networkBullets = []; damageNumbers = []; killFeed = []; coinParticles = []; bombs = []; explosions = [];
       streakAnnounce = { text: '', opacity: 0 }; weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
       targetBiome = biomes[0]; currentSky = [...targetBiome.sky]; biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5;
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
@@ -687,8 +707,12 @@
       
       if (!isPublicMode) npcs = [];
       
-      // Show leaderboard only in public mode
-      leaderboardPanel.style.display = isPublicMode ? 'block' : 'none';
+      // Leaderboard only shows on death screen, not during gameplay (canvas mini-LB handles it)
+      leaderboardPanel.style.display = 'none';
+      // Show bomb button on mobile in public mode
+      const bb = document.getElementById('bombBtn');
+      if (isTouchMode && isPublicMode) { bb.style.display = 'flex'; document.getElementById('bombCount').innerText = myPlayer.bombs; }
+      else bb.style.display = 'none';
       
       buildMap(); initParticles(); gameLoop();
     }
@@ -706,6 +730,7 @@
       document.getElementById('teamHUD').style.display = 'none';
       document.getElementById('roomMiniLeaderboard').style.display = 'none';
       canvas.style.display = 'none';
+      document.getElementById('bombBtn').style.display = 'none';
       // Update death screen based on mode
       if (!isPublicMode && matchState === 'playing') {
         document.getElementById('finalKillsText').innerText = `KILLS THIS MATCH: ${myPlayer.kills}`;
@@ -744,13 +769,23 @@
       let fx = 1000; while (fx < worldWidth - 1200) { let baseY = 400 + rand() * 800, clusterX = fx; for (let ci = 0; ci < 3 + Math.floor(rand() * 3); ci++) { let pw = 80 + rand() * 120, py = baseY + (rand() - 0.5) * 200; if(!checkOverlap(clusterX, py, pw, 20)) { map.push({ x: clusterX, y: py, w: pw, h: 20, type: "plat", tier: 2 }); spawnPowerup(clusterX + pw/2 - 15, py - 32, rand); } clusterX += pw + 30 + rand() * 60; } fx += 1200 + rand() * 1500; }
     }
 
-    window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; });
+    window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; if (k==='g') throwBomb(); });
     window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=false; if (k==='d'||k==='arrowright') keys.d=false; if (k==='w'||k==='arrowup'||k===' ') keys.w=false; });
     canvas.addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas) { mouseX += e.movementX; mouseY += e.movementY; mouseX = Math.max(0, Math.min(canvas.width, mouseX)); mouseY = Math.max(0, Math.min(canvas.height, mouseY)); } else { mouseX = e.clientX; mouseY = e.clientY; } });
     canvas.addEventListener('mousedown', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = true; }); canvas.addEventListener('mouseup', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = false; });
     canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (!isPlaying) return; for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (t.clientX < canvas.width / 2) { joyLeft.active=true; joyLeft.touchId=t.identifier; joyLeft.startX=t.clientX; joyLeft.startY=t.clientY; joyLeft.dx=0; joyLeft.dy=0; } else { joyRight.active=true; joyRight.touchId=t.identifier; joyRight.startX=t.clientX; joyRight.startY=t.clientY; joyRight.dx=0; joyRight.dy=0; keys.fire=true; } } }, {passive: false});
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!isPlaying) return; for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier===joyLeft.touchId) { let dx=t.clientX-joyLeft.startX; let dy=t.clientY-joyLeft.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyLeft.dx=dx; joyLeft.dy=dy; } if (joyRight.active && t.identifier===joyRight.touchId) { let dx=t.clientX-joyRight.startX; let dy=t.clientY-joyRight.startY; let dist=Math.hypot(dx,dy); if(dist>50){dx=(dx/dist)*50;dy=(dy/dist)*50;} joyRight.dx=dx; joyRight.dy=dy; keys.fire = Math.hypot(dx,dy) > 20; } } }, {passive: false});
     canvas.addEventListener('touchend', (e) => { e.preventDefault(); for (let i = 0; i < e.changedTouches.length; i++) { let t = e.changedTouches[i]; if (joyLeft.active && t.identifier===joyLeft.touchId) { joyLeft.active=false; keys.a=false; keys.d=false; keys.w=false; } if (joyRight.active && t.identifier===joyRight.touchId) { joyRight.active=false; keys.fire=false; } } }, {passive: false});
+
+    // Mobile bomb button
+    document.getElementById('bombBtn').addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      throwBomb();
+      const bc = document.getElementById('bombCount');
+      bc.innerText = myPlayer.bombs;
+      const bb = document.getElementById('bombBtn');
+      bb.style.opacity = myPlayer.bombs === 0 ? '0.4' : '1';
+    }, { passive: false });
 
     function shoot() {
       const w = WEAPONS[myPlayer.weapon]; let bx = myPlayer.x + myPlayer.width/2, by = myPlayer.y + myPlayer.height/2;
@@ -763,7 +798,72 @@
       }
     }
 
-    function update() {
+    function throwBomb() {
+      if (!isPlaying || myPlayer.bombs <= 0) return;
+      const now = Date.now();
+      if (now - lastBombTime < 400) return; // prevent spam
+      lastBombTime = now;
+      myPlayer.bombs--;
+      const spd = 11;
+      bombs.push({
+        x: myPlayer.x + 20, y: myPlayer.y + 20,
+        vx: Math.cos(myPlayer.aimAngle) * spd,
+        vy: Math.sin(myPlayer.aimAngle) * spd - 2,
+        timer: 2200, bounces: 0, ownerId: socket?.id || 'local'
+      });
+      killFeed.push({ text: `💣 BOMB THROWN [${myPlayer.bombs} left]`, timer: 2.0, color: '#f1c40f' });
+      const bb = document.getElementById('bombBtn');
+      const bc = document.getElementById('bombCount');
+      bc.innerText = myPlayer.bombs;
+      if (myPlayer.bombs === 0) bb.style.opacity = '0.4';
+    }
+
+    function explodeBomb(b) {
+      const RADIUS = 130, DAMAGE = 65;
+      explosions.push({ x: b.x, y: b.y, r: 0, maxR: RADIUS, opacity: 1.0 });
+      screenShake = 1.8;
+      killFeed.push({ text: `💥 BOOM!`, timer: 2.2, color: '#f1c40f' });
+
+      // Damage self
+      const selfDist = Math.hypot(myPlayer.x + 20 - b.x, myPlayer.y + 20 - b.y);
+      if (selfDist < RADIUS && myPlayer.health > 0 && myPlayer.invincibleTimer <= Date.now()) {
+        const dmg = Math.floor(DAMAGE * 0.5 * (1 - selfDist / RADIUS)); // 50% self-damage
+        if (dmg > 0) { myPlayer.health -= dmg; damageNumbers.push({ x: myPlayer.x+20, y: myPlayer.y-10, value: -dmg, vy: -3, opacity: 2.2, color: '#e17055', size: 18 }); if (myPlayer.health <= 0) killPlayer(); }
+      }
+
+      // Damage network players
+      if (b.ownerId === (socket?.id || 'local')) {
+        for (let id in networkPlayers) {
+          const np = networkPlayers[id]; if (np.health <= 0) continue;
+          const d = Math.hypot(np.x + 20 - b.x, np.y + 20 - b.y);
+          if (d < RADIUS) {
+            if (np.localHealth === undefined) np.localHealth = np.health;
+            const dmg = Math.floor(DAMAGE * (1 - d / RADIUS));
+            np.localHealth -= dmg;
+            damageNumbers.push({ x: np.x + 20, y: np.y - 10, value: dmg, vy: -2.5, opacity: 2.2, color: '#f1c40f', size: 18 });
+            if (np.localHealth <= 0 && !np.countedKill) {
+              np.countedKill = true; myPlayer.kills++; myPlayer.killStreak++;
+              killFeed.push({ text: `💣 YOU → ${np.name}`, timer: 5.0, color: '#ff4757' });
+              spawnCoins(np.x + 20, np.y + 20); checkStreak(myPlayer.killStreak);
+              if (!isPublicMode && matchState === 'playing' && isOnline && socket && socket.connected) socket.emit('reportKill', { victim: np.name });
+              else if (isPublicMode) socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
+            }
+          }
+        }
+        // Damage bots in public mode
+        if (isPublicMode) {
+          npcs.forEach(npc => {
+            if (npc.health <= 0) return;
+            const d = Math.hypot(npc.x + 20 - b.x, npc.y + 20 - b.y);
+            if (d < RADIUS) { socket.emit('damageBot', { botId: npc.id, damage: Math.floor(DAMAGE * (1 - d / RADIUS)) }); }
+          });
+        }
+        // Tell server to relay to other players
+        if (isOnline && socket && socket.connected) socket.emit('bombExplode', { x: b.x, y: b.y, radius: RADIUS, damage: DAMAGE, ownerId: b.ownerId });
+      }
+    }
+
+
       let t = Date.now();
       let targetZoom = WEAPONS[myPlayer.weapon].zoom; currentZoom += (targetZoom - currentZoom) * 0.05;
       if (myPlayer.weapon !== 'rifle' && t > myPlayer.weaponExpire) { myPlayer.weapon = 'rifle'; myPlayer.ammo = WEAPONS['rifle'].ammo; myPlayer.maxAmmo = WEAPONS['rifle'].ammo; myPlayer.isReloading = false; weaponPickupAnnounce = { text: `WEAPON EXPIRED`, opacity: 2.5, color: '#fff' }; }
@@ -864,6 +964,30 @@
       for (let i = coinParticles.length - 1; i >= 0; i--) { let c = coinParticles[i]; c.x += c.vx; c.y += c.vy; c.vy += 0.15; c.opacity -= 0.022; if (c.opacity <= 0) coinParticles.splice(i, 1); }
       for (let i = killFeed.length - 1; i >= 0; i--) { killFeed[i].timer -= 0.014; if (killFeed[i].timer <= 0) killFeed.splice(i, 1); }
       if (streakAnnounce.opacity > 0) streakAnnounce.opacity -= 0.016; if (weaponPickupAnnounce.opacity > 0) weaponPickupAnnounce.opacity -= 0.018; if (screenShake > 0) screenShake = Math.max(0, screenShake - 0.04);
+
+      // ── BOMB PHYSICS ──
+      for (let i = bombs.length - 1; i >= 0; i--) {
+        const b = bombs[i];
+        b.timer -= 16; b.vy += 0.45; b.x += b.vx; b.y += b.vy;
+        // Platform collision (bounce)
+        for (const obj of map) {
+          if (b.x < obj.x+obj.w && b.x+10 > obj.x && b.y < obj.y+obj.h && b.y+10 > obj.y) {
+            if (Math.abs(b.vy) >= Math.abs(b.vx)) { b.vy *= -0.45; b.vx *= 0.75; b.y += b.vy; }
+            else { b.vx *= -0.45; b.x += b.vx; }
+            b.bounces++;
+          }
+        }
+        // Clamp to world
+        if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx) * 0.5; }
+        if (b.x > worldWidth) { b.x = worldWidth; b.vx = -Math.abs(b.vx) * 0.5; }
+        if (b.timer <= 0 || b.y > worldHeight + 80) { explodeBomb(b); bombs.splice(i, 1); }
+      }
+      // ── EXPLOSION FADE ──
+      for (let i = explosions.length - 1; i >= 0; i--) {
+        const ex = explosions[i]; ex.r += ex.maxR * 0.12; ex.opacity -= 0.055;
+        if (ex.opacity <= 0) explosions.splice(i, 1);
+      }
+
       camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width/2 - effW/2, worldWidth - effW)); camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height/2 - effH/2, worldHeight - effH));
     }
 
@@ -924,6 +1048,48 @@
 
       for (let dn of damageNumbers) { ctx.save(); ctx.globalAlpha = Math.min(1, dn.opacity); ctx.fillStyle = dn.color; ctx.font = `bold ${dn.size || 16}px "Rajdhani", sans-serif`; ctx.textAlign = 'center'; ctx.shadowColor = dn.color; ctx.shadowBlur = 8; ctx.fillText(dn.value, dn.x, dn.y); ctx.restore(); }
       for (let c of coinParticles) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, c.opacity)); ctx.fillStyle = '#f1c40f'; ctx.strokeStyle = '#e17055'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c.x, c.y, c.size, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore(); }
+
+      // ── DRAW EXPLOSIONS ──
+      for (const ex of explosions) {
+        ctx.save(); ctx.globalAlpha = Math.max(0, ex.opacity);
+        const grad = ctx.createRadialGradient(ex.x, ex.y, 0, ex.x, ex.y, ex.r);
+        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+        grad.addColorStop(0.25, 'rgba(255,220,50,0.85)');
+        grad.addColorStop(0.6, 'rgba(231,76,60,0.6)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI*2); ctx.fill();
+        // Shockwave ring
+        ctx.strokeStyle = `rgba(241,196,15,${ex.opacity * 0.7})`; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(ex.x, ex.y, ex.r * 0.9, 0, Math.PI*2); ctx.stroke();
+        ctx.restore();
+      }
+
+      // ── DRAW BOMBS ──
+      for (const b of bombs) {
+        const pulse = 1 - (b.timer / 2200); // 0→1 as it approaches explosion
+        ctx.save();
+        // Danger glow when about to explode
+        if (pulse > 0.6) {
+          ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.03) * 0.25;
+          ctx.fillStyle = '#ff4757'; ctx.beginPath();
+          ctx.arc(b.x + 5, b.y + 5, 20, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        // Body
+        ctx.fillStyle = pulse > 0.6 ? '#e74c3c' : '#2d3436';
+        ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(b.x + 5, b.y + 5, 7, 0, Math.PI*2);
+        ctx.fill(); ctx.stroke();
+        // Fuse
+        ctx.strokeStyle = pulse > 0.6 ? '#ff4757' : '#f1c40f'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(b.x + 5, b.y - 2);
+        ctx.quadraticCurveTo(b.x + 11, b.y - 10, b.x + 8, b.y - 15);
+        ctx.stroke();
+        // Spark at fuse tip
+        ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5 + Math.random() * 0.5;
+        ctx.beginPath(); ctx.arc(b.x + 8, b.y - 15, 2.5, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
       
       ctx.restore(); 
       
@@ -954,6 +1120,73 @@
       if (isPublicMode) { for (let i = 0; i < npcs.length; i++) { if (npcs[i].health <= 0) continue; ctx.fillStyle = npcs[i].color; ctx.fillRect(mm.x + npcs[i].x*sx - 2, mm.y + npcs[i].y*sy - 2, 4, 4); } }
       ctx.fillStyle = 'white'; ctx.fillRect(mm.x + myPlayer.x*sx - 3, mm.y + myPlayer.y*sy - 3, 6, 6);
       ctx.strokeStyle = 'rgba(85,239,196,0.45)'; ctx.lineWidth=1; ctx.strokeRect(mm.x, mm.y, mm.w, mm.h); ctx.fillStyle = 'rgba(85,239,196,0.5)'; ctx.font = '9px "Share Tech Mono",monospace'; ctx.textAlign='left'; ctx.fillText('RADAR', mm.x, mm.y - 4);
+
+      // ── CANVAS MINI LEADERBOARD (top 3 + my rank) ──
+      if (isPublicMode && publicLeaderboardData.length > 0) {
+        const lbX = mm.x, lbW = mm.w;
+        const rowH = isMob ? 13 : 17, lbFs = isMob ? 8 : 10;
+        const top3 = publicLeaderboardData.slice(0, 3);
+        const myRank = publicLeaderboardData.findIndex(p => p.name === myPlayer.name);
+        const showMyRow = myRank >= 3;
+        const lbTotalH = (top3.length + (showMyRow ? 1.8 : 0)) * rowH + (isMob ? 6 : 8);
+        const lbY = mm.y + mm.h + (isMob ? 8 : 12);
+
+        // Background
+        ctx.fillStyle = 'rgba(0,0,0,0.70)'; ctx.fillRect(lbX - 2, lbY - 2, lbW + 4, lbTotalH + 4);
+        ctx.fillStyle = 'rgba(241,196,15,0.05)'; ctx.fillRect(lbX, lbY, lbW, lbTotalH);
+        ctx.strokeStyle = 'rgba(241,196,15,0.28)'; ctx.lineWidth = 1; ctx.strokeRect(lbX, lbY, lbW, lbTotalH);
+        ctx.fillStyle = 'rgba(241,196,15,0.45)'; ctx.font = `${lbFs - 1}px "Share Tech Mono",monospace`;
+        ctx.textAlign = 'left'; ctx.fillText('TOP OPS', lbX + 3, lbY - 3);
+
+        const medals = ['👑', '2', '3'];
+        let ry = lbY + rowH - 2;
+        top3.forEach((p, i) => {
+          if (i === 0) { ctx.fillStyle = 'rgba(241,196,15,0.08)'; ctx.fillRect(lbX, ry - rowH + 3, lbW, rowH); }
+          ctx.fillStyle = i === 0 ? '#f1c40f' : '#7f8c8d';
+          ctx.font = `bold ${lbFs}px "Share Tech Mono",monospace`; ctx.textAlign = 'left';
+          ctx.fillText(i === 0 ? '👑' : `${medals[i]}.`, lbX + 3, ry);
+          ctx.fillStyle = p.name === myPlayer.name ? '#55efc4' : 'white';
+          ctx.font = `bold ${lbFs + 1}px "Rajdhani",sans-serif`;
+          ctx.fillText(p.name.substring(0, isMob ? 6 : 8), lbX + (isMob ? 18 : 22), ry);
+          ctx.fillStyle = '#55efc4'; ctx.font = `${lbFs}px "Share Tech Mono",monospace`;
+          ctx.textAlign = 'right'; ctx.fillText(p.totalKills || 0, lbX + lbW - 3, ry);
+          ry += rowH;
+        });
+
+        // My row if not in top 3
+        if (showMyRow) {
+          ry += 3;
+          ctx.fillStyle = 'rgba(85,239,196,0.1)'; ctx.fillRect(lbX, ry - rowH + 3, lbW, rowH);
+          ctx.strokeStyle = 'rgba(85,239,196,0.2)'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(lbX, ry - rowH + 2); ctx.lineTo(lbX + lbW, ry - rowH + 2); ctx.stroke();
+          ctx.fillStyle = '#55efc4'; ctx.font = `bold ${lbFs}px "Share Tech Mono",monospace`;
+          ctx.textAlign = 'left'; ctx.fillText(`${myRank + 1}.`, lbX + 3, ry);
+          ctx.font = `bold ${lbFs + 1}px "Rajdhani",sans-serif`; ctx.fillText('YOU', lbX + (isMob ? 18 : 22), ry);
+          ctx.font = `${lbFs}px "Share Tech Mono",monospace`; ctx.textAlign = 'right';
+          ctx.fillText(publicLeaderboardData[myRank]?.totalKills || myPlayer.kills, lbX + lbW - 3, ry);
+        } else if (myRank === -1) {
+          // Not on board yet — show current session kills
+          ry += 3;
+          ctx.fillStyle = 'rgba(85,239,196,0.1)'; ctx.fillRect(lbX, ry - rowH + 3, lbW, rowH);
+          ctx.fillStyle = '#55efc4'; ctx.font = `bold ${lbFs}px "Share Tech Mono",monospace`;
+          ctx.textAlign = 'left'; ctx.fillText(`--.`, lbX + 3, ry);
+          ctx.font = `bold ${lbFs + 1}px "Rajdhani",sans-serif`; ctx.fillText('YOU', lbX + (isMob ? 18 : 22), ry);
+          ctx.font = `${lbFs}px "Share Tech Mono",monospace`; ctx.textAlign = 'right';
+          ctx.fillText(myPlayer.kills, lbX + lbW - 3, ry);
+        }
+        ctx.textAlign = 'left';
+      }
+
+      // ── BOMB AMMO HUD (bottom-left of HUD stack) ──
+      if (isPublicMode) {
+        const bY = wY + gap + (myPlayer.speedBoostTimer > t ? gap : 0) + (invincible ? gap : 0);
+        ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, bY, HW+4, HH+4);
+        ctx.fillStyle = myPlayer.bombs > 0 ? 'rgba(241,196,15,0.1)' : 'rgba(80,0,0,0.6)'; ctx.fillRect(HX, bY+2, HW, HH);
+        ctx.strokeStyle = myPlayer.bombs > 0 ? 'rgba(241,196,15,0.4)' : 'rgba(231,76,60,0.4)'; ctx.lineWidth = 1; ctx.strokeRect(HX, bY+2, HW, HH);
+        ctx.fillStyle = myPlayer.bombs > 0 ? '#f1c40f' : '#e74c3c';
+        ctx.font = `bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign = 'left';
+        ctx.fillText(`💣 BOMB  ${myPlayer.bombs}  [G]`, HX + 6, bY + HH - 1);
+      }
 
       ctx.save(); ctx.font = `${isMob?10:13}px "Share Tech Mono",monospace`; ctx.textAlign = 'right'; let kfY = mm.y + mm.h + 20; 
       for (let kf of killFeed) { ctx.globalAlpha = Math.min(1, kf.timer); let w = ctx.measureText(kf.text).width + 20; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(canvas.width - w - 12, kfY - 16, w, 20); ctx.fillStyle = kf.color || '#55efc4'; ctx.fillText(kf.text, canvas.width - 12, kfY); kfY += 24; }
