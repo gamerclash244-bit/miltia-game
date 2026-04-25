@@ -1,1 +1,1 @@
-# miltia-game
+# Miltia Game Frontend

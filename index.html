@@ -332,16 +332,38 @@
       authBtn.style.display = 'block'; menus.login.style.display = 'flex';
     }
 
-    function initNetwork() {
+    async function initNetwork() {
       const myRenderURL = "https://baylerbay-militia-server.onrender.com"; 
       const loginStatus = document.getElementById('loginStatus');
       if (typeof io === 'undefined') { loginStatus.innerText = "Error: Blocked by browser."; loginStatus.style.color = "#e74c3c"; return; }
       if (socket) return;
-      
-      loginStatus.innerText = "Waking up server... (Can take 50 seconds)"; loginStatus.style.color = "#f39c12";
+
+      loginStatus.innerText = "Waking up server... (Can take 60 seconds)"; loginStatus.style.color = "#f39c12";
+
+      // ── WAKE-UP PING: poll /health until server responds before connecting socket ──
+      let serverAwake = false;
+      const maxPingAttempts = 20;
+      for (let i = 0; i < maxPingAttempts; i++) {
+        try {
+          const res = await fetch(myRenderURL + '/health', { signal: AbortSignal.timeout(5000) });
+          if (res.ok) { serverAwake = true; break; }
+        } catch (_) {}
+        const dots = '.'.repeat((i % 3) + 1);
+        loginStatus.innerText = "Waking up server" + dots + " (" + Math.round((i + 1) * 5) + "s elapsed)";
+        loginStatus.style.color = "#f39c12";
+        await new Promise(r => setTimeout(r, 3000));
+      }
+
+      if (!serverAwake) {
+        loginStatus.innerText = "Server unreachable. Please try again later.";
+        loginStatus.style.color = "#e74c3c";
+        return;
+      }
+
+      loginStatus.innerText = "Server awake — connecting..."; loginStatus.style.color = "#f39c12";
 
       try {
-        socket = io(myRenderURL, { reconnectionAttempts: 12, reconnectionDelay: 5000 });
+        socket = io(myRenderURL, { reconnectionAttempts: 5, reconnectionDelay: 3000, timeout: 10000 });
 
         socket.on('connect', () => { isOnline = true; loginStatus.innerText = "Server Online. Please Authenticate."; loginStatus.style.color = "#2ecc71"; authBtn.style.display = "block"; });
 
