@@ -871,7 +871,7 @@
       }
     }
 
-
+    function update() {
       let t = Date.now();
       let targetZoom = WEAPONS[myPlayer.weapon].zoom; currentZoom += (targetZoom - currentZoom) * 0.05;
       if (myPlayer.weapon !== 'rifle' && t > myPlayer.weaponExpire) { myPlayer.weapon = 'rifle'; myPlayer.ammo = WEAPONS['rifle'].ammo; myPlayer.maxAmmo = WEAPONS['rifle'].ammo; myPlayer.isReloading = false; weaponPickupAnnounce = { text: `WEAPON EXPIRED`, opacity: 2.5, color: '#fff' }; }
