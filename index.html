@@ -283,6 +283,14 @@
         <div class="color-btn selected" data-color="#e74c3c" style="background:#e74c3c;"></div><div class="color-btn" data-color="#2ecc71" style="background:#2ecc71;"></div><div class="color-btn" data-color="#3498db" style="background:#3498db;"></div><div class="color-btn" data-color="#f1c40f" style="background:#f1c40f;"></div><div class="color-btn" data-color="#a29bfe" style="background:#a29bfe;"></div><div class="color-btn" data-color="#fd79a8" style="background:#fd79a8;"></div>
       </div>
     </div>
+    <div class="setting-group" style="margin-top:22px; width:100%; max-width:320px;">
+      <label style="font-family:'Share Tech Mono',monospace; color:#bdc3c7; font-size:0.8rem; letter-spacing:2px;">MASTER VOL <span id="masterVolLabel">90%</span></label>
+      <input type="range" id="masterVolSlider" min="0" max="100" value="90" style="width:100%; margin-top:6px; accent-color:var(--accent);">
+      <label style="font-family:'Share Tech Mono',monospace; color:#bdc3c7; font-size:0.8rem; letter-spacing:2px; margin-top:10px; display:block;">SFX VOL <span id="sfxVolLabel">100%</span></label>
+      <input type="range" id="sfxVolSlider" min="0" max="100" value="100" style="width:100%; margin-top:6px; accent-color:var(--gold);">
+      <label style="font-family:'Share Tech Mono',monospace; color:#bdc3c7; font-size:0.8rem; letter-spacing:2px; margin-top:10px; display:block;">AMBIENCE VOL <span id="ambVolLabel">55%</span></label>
+      <input type="range" id="ambVolSlider" min="0" max="100" value="55" style="width:100%; margin-top:6px; accent-color:#a29bfe;">
+    </div>
     <button id="saveSettingsBtn" class="ui-btn" style="margin-top:28px;">Save &amp; Return</button>
   </div>
 
@@ -338,6 +346,187 @@
       time:    { icon: '⏱️', label: 'STICKY',color: '#a29bfe', radius: 120, damage: 75,  timer: 0    },
     };
     let activeBombType = 'regular';
+
+    // ── SOUND SYSTEM ──────────────────────────────────────────────────────────
+    const SOUNDS_BASE_URL = '/sounds'; // ← Change this to your CDN base URL
+
+    const SOUND_FILES = {
+      rifle_shot:       'weapons/rifle_shot.mp3',
+      rifle_reload:     'weapons/rifle_reload.mp3',
+      sniper_shot:      'weapons/sniper_shot.mp3',
+      sniper_reload:    'weapons/sniper_reload.mp3',
+      shotgun_shot:     'weapons/shotgun_shot.mp3',
+      shotgun_reload:   'weapons/shotgun_reload.mp3',
+      bullet_impact:    'weapons/bullet_impact.mp3',
+      bullet_whoosh:    'weapons/bullet_whoosh.mp3',
+      bomb_throw:       'bombs/bomb_throw.mp3',
+      fuse_loop:        'bombs/fuse_loop.mp3',
+      explosion_frag:   'bombs/explosion_frag.mp3',
+      explosion_smell:  'bombs/explosion_smell.mp3',
+      explosion_die:    'bombs/explosion_die.mp3',
+      sticky_arm:       'bombs/sticky_arm.mp3',
+      sticky_trigger:   'bombs/sticky_trigger.mp3',
+      jetpack_loop:     'player/jetpack_loop.mp3',
+      hit_taken:        'player/hit_taken.mp3',
+      death:            'player/death.mp3',
+      pickup_powerup:   'player/pickup_powerup.mp3',
+      pickup_bomb:      'player/pickup_bomb.mp3',
+      kill_confirm:     'player/kill_confirm.mp3',
+      ambience_forest:  'ambience/ambience_forest.mp3',
+      ambience_savanna: 'ambience/ambience_desert.mp3',
+      ambience_ash:     'ambience/ambience_cave.mp3',
+      ambience_frost:   'ambience/ambience_snow.mp3',
+      ambience_void:    'ambience/ambience_volcano.mp3',
+      menu_click:       'ui/menu_click.mp3',
+      match_start:      'ui/match_start.mp3',
+      match_end:        'ui/match_end.mp3',
+    };
+
+    // Biome name → ambience key
+    const BIOME_AMBIENCE = {
+      'GREENLANDS':    'ambience_forest',
+      'SAVANNA':       'ambience_savanna',
+      'ASH WASTELAND': 'ambience_ash',
+      'FROST PEAKS':   'ambience_frost',
+      'THE VOID':      'ambience_void',
+    };
+
+    const SFX = (() => {
+      let ctx = null, masterGain, sfxGain, ambienceGain;
+      const buffers = {};
+      let ready = false;
+      // Looping nodes
+      let jetpackNode = null, fuseNodes = {}, ambienceNode = null, ambienceFadeNode = null;
+      let currentAmbienceKey = null;
+      // Volume settings (0-1)
+      let vol = { master: 0.9, sfx: 1.0, ambience: 0.55 };
+
+      function init() {
+        try {
+          ctx = new (window.AudioContext || window.webkitAudioContext)();
+          masterGain  = ctx.createGain(); masterGain.gain.value  = vol.master;  masterGain.connect(ctx.destination);
+          sfxGain     = ctx.createGain(); sfxGain.gain.value     = vol.sfx;     sfxGain.connect(masterGain);
+          ambienceGain = ctx.createGain(); ambienceGain.gain.value = 0;          ambienceGain.connect(masterGain);
+          ready = true;
+          preloadAll();
+        } catch(e) { console.warn('Web Audio not supported:', e); }
+      }
+
+      async function loadBuffer(key, url) {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return;
+          const arr = await res.arrayBuffer();
+          buffers[key] = await ctx.decodeAudioData(arr);
+        } catch(e) { /* file missing – silent fail */ }
+      }
+
+      function preloadAll() {
+        Object.entries(SOUND_FILES).forEach(([key, path]) => loadBuffer(key, `${SOUNDS_BASE_URL}/${path}`));
+      }
+
+      function resume() { if (ctx && ctx.state === 'suspended') ctx.resume(); }
+
+      function play(key, { volume = 1, pitch = 1, pan = 0, loop = false } = {}) {
+        if (!ready || !buffers[key]) return null;
+        resume();
+        const src = ctx.createBufferSource();
+        src.buffer = buffers[key];
+        src.playbackRate.value = pitch;
+        src.loop = loop;
+        const gain = ctx.createGain(); gain.gain.value = volume;
+        const panner = ctx.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan));
+        src.connect(gain); gain.connect(panner); panner.connect(sfxGain);
+        src.start();
+        return { src, gain };
+      }
+
+      // Calculate stereo pan from world position relative to player
+      function worldPan(wx) {
+        if (typeof myPlayer === 'undefined') return 0;
+        const dx = (wx - (myPlayer.x + 20)) / (canvas.width / 2);
+        return Math.max(-1, Math.min(1, dx * 0.8));
+      }
+
+      // Play a sound at a world position (volume falls off with distance)
+      function playAt(key, wx, wy, { maxDist = 900, baseVol = 1, pitch = 1 } = {}) {
+        if (!ready || !buffers[key]) return;
+        const dist = Math.hypot((myPlayer.x + 20) - wx, (myPlayer.y + 20) - wy);
+        if (dist > maxDist) return;
+        const vol2 = baseVol * (1 - dist / maxDist);
+        play(key, { volume: vol2, pitch, pan: worldPan(wx) });
+      }
+
+      // Looping jetpack
+      function startJetpack() {
+        if (jetpackNode || !ready || !buffers['jetpack_loop']) return;
+        resume();
+        const src = ctx.createBufferSource(); src.buffer = buffers['jetpack_loop']; src.loop = true;
+        const gain = ctx.createGain(); gain.gain.value = 0.55;
+        src.connect(gain); gain.connect(sfxGain); src.start();
+        jetpackNode = { src, gain };
+      }
+      function stopJetpack() {
+        if (!jetpackNode) return;
+        try { jetpackNode.src.stop(); } catch(e) {}
+        jetpackNode = null;
+      }
+
+      // Per-bomb fuse sounds (keyed by bomb index)
+      function startFuse(bombId) {
+        if (fuseNodes[bombId] || !ready || !buffers['fuse_loop']) return;
+        resume();
+        const src = ctx.createBufferSource(); src.buffer = buffers['fuse_loop']; src.loop = true;
+        const gain = ctx.createGain(); gain.gain.value = 0.5;
+        src.connect(gain); gain.connect(sfxGain); src.start();
+        fuseNodes[bombId] = { src, gain };
+      }
+      function stopFuse(bombId) {
+        if (!fuseNodes[bombId]) return;
+        try { fuseNodes[bombId].src.stop(); } catch(e) {}
+        delete fuseNodes[bombId];
+      }
+      function stopAllFuses() { Object.keys(fuseNodes).forEach(stopFuse); }
+
+      // Biome ambience crossfade
+      function setAmbience(key) {
+        if (!ready || key === currentAmbienceKey) return;
+        currentAmbienceKey = key;
+        // Fade out old
+        if (ambienceNode) {
+          const oldGain = ambienceFadeNode;
+          oldGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2.0);
+          setTimeout(() => { try { ambienceNode.stop(); } catch(e){} }, 2200);
+        }
+        if (!buffers[key]) return;
+        resume();
+        const src = ctx.createBufferSource(); src.buffer = buffers[key]; src.loop = true;
+        const gain = ctx.createGain(); gain.gain.value = 0;
+        src.connect(gain); gain.connect(ambienceGain); src.start();
+        ambienceNode = src; ambienceFadeNode = gain;
+        // Fade in
+        gain.gain.linearRampToValueAtTime(vol.ambience, ctx.currentTime + 2.0);
+        ambienceGain.gain.value = 1;
+      }
+
+      function setVolumes(master, sfx2, amb) {
+        vol.master = master; vol.sfx = sfx2; vol.ambience = amb;
+        if (!ready) return;
+        masterGain.gain.value = master;
+        sfxGain.gain.value = sfx2;
+        if (ambienceFadeNode) ambienceFadeNode.gain.value = amb;
+      }
+
+      function getVolumes() { return { ...vol }; }
+
+      function stopAmbience() {
+        if (ambienceNode) { try { ambienceNode.stop(); } catch(e){} ambienceNode = null; ambienceFadeNode = null; currentAmbienceKey = null; }
+        if (ready) ambienceGain.gain.value = 0;
+      }
+
+      return { init, play, playAt, worldPan, startJetpack, stopJetpack, startFuse, stopFuse, stopAllFuses, setAmbience, setVolumes, getVolumes, stopAmbience, resume,
+        get ready() { return ready; } };
+    })();
     
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = []; let currentZoom = 1.0;
@@ -429,6 +618,7 @@
 
         socket.on('matchStart', (state) => {
             matchState = 'playing';
+            SFX.play('match_start', { volume: 0.85 });
             hideAllMenus();
             canvas.style.display = 'block';
             if (state.mode === 'time') {
@@ -475,6 +665,8 @@
         socket.on('matchEnd', (data) => {
             matchState = 'ended';
             isPlaying = false; document.exitPointerLock();
+            SFX.play('match_end', { volume: 0.85 });
+            SFX.stopJetpack(); SFX.stopAllFuses(); SFX.stopAmbience();
             canvas.style.display = 'none';
             document.getElementById('matchTimerHUD').style.display = 'none';
             document.getElementById('killGoalHUD').style.display = 'none';
@@ -504,6 +696,12 @@
     }
 
     initNetwork();
+
+    // Init audio on first user gesture (browser policy)
+    const _sfxInitOnce = () => { SFX.init(); document.removeEventListener('click', _sfxInitOnce); document.removeEventListener('touchstart', _sfxInitOnce); document.removeEventListener('keydown', _sfxInitOnce); };
+    document.addEventListener('click', _sfxInitOnce, { once: true });
+    document.addEventListener('touchstart', _sfxInitOnce, { once: true });
+    document.addEventListener('keydown', _sfxInitOnce, { once: true });
 
     authBtn.addEventListener('click', () => { const name = document.getElementById('loginName').value.trim(); const pin = document.getElementById('loginPin').value.trim(); const status = document.getElementById('loginStatus'); if (!name || !pin) { status.innerText = "Callsign and PIN required."; status.style.color = "#e74c3c"; return; } status.innerText = "Verifying Credentials..."; status.style.color = "#f1c40f"; socket.emit('login', { name, pin }, (res) => { if (res.success) { myPlayer.name = name; menus.login.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; } else { status.innerText = res.message || "Authentication failed."; status.style.color = "#e74c3c"; } }); });
 
@@ -571,7 +769,26 @@
     document.getElementById('backFromLanBtn').addEventListener('click', () => { menus.lan.style.display = 'none'; menus.roomSelect.style.display = 'flex'; });
 
     // ── SETTINGS ──
-    document.getElementById('saveSettingsBtn').addEventListener('click', () => { menus.settings.style.display = 'none'; menus.main.style.display = 'flex'; });
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+      const master = document.getElementById('masterVolSlider').value / 100;
+      const sfx    = document.getElementById('sfxVolSlider').value / 100;
+      const amb    = document.getElementById('ambVolSlider').value / 100;
+      SFX.setVolumes(master, sfx, amb);
+      SFX.play('menu_click', { volume: 0.6 });
+      menus.settings.style.display = 'none'; menus.main.style.display = 'flex';
+    });
+
+    // Live slider preview labels
+    ['masterVol','sfxVol','ambVol'].forEach(id => {
+      const slider = document.getElementById(id + 'Slider');
+      const label  = document.getElementById(id + 'Label');
+      if (slider && label) slider.addEventListener('input', () => { label.innerText = slider.value + '%'; SFX.resume(); });
+    });
+
+    // Menu click sound on all .ui-btn clicks
+    document.querySelectorAll('.ui-btn').forEach(btn => {
+      btn.addEventListener('click', () => SFX.play('menu_click', { volume: 0.5 }), { capture: false });
+    });
 
     // ── LOBBY ──
     let amIReady = false;
@@ -601,7 +818,7 @@
     });
 
     // ── DEATH SCREEN ──
-    document.getElementById('backMenuBtn').addEventListener('click', () => { menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; hideAllMenus(); menus.main.style.display = 'flex'; });
+    document.getElementById('backMenuBtn').addEventListener('click', () => { SFX.stopJetpack(); SFX.stopAllFuses(); SFX.stopAmbience(); menus.death.style.display = 'none'; menus.main.style.display = 'flex'; leaderboardPanel.style.display = 'none'; hideAllMenus(); menus.main.style.display = 'flex'; });
     document.getElementById('respawnBtn').addEventListener('click', () => {
         menus.death.style.display = 'none'; leaderboardPanel.style.display = 'none';
         if (isPublicMode) {
@@ -767,11 +984,19 @@
       if (isTouchMode) { bb.style.display = 'flex'; bcb.style.display = 'flex'; updateBombUI(); }
       else { bb.style.display = 'none'; bcb.style.display = 'none'; }
       
-      buildMap(); initParticles(); gameLoop();
+      buildMap(); initParticles();
+      // Start ambience for first biome
+      const startAmbienceKey = BIOME_AMBIENCE[biomes[0].name];
+      if (startAmbienceKey) SFX.setAmbience(startAmbienceKey);
+      gameLoop();
     }
 
     function killPlayer() {
       isPlaying = false; myPlayer.health = 0; document.exitPointerLock();
+      SFX.play('death', { volume: 1.0 });
+      SFX.stopJetpack();
+      SFX.stopAllFuses();
+      SFX.stopAmbience();
       if (isOnline && socket && socket.connected) {
         socket.emit('playerMovement', { x: myPlayer.x, y: myPlayer.y, aimAngle: myPlayer.aimAngle, color: myPlayer.color, name: myPlayer.name, health: 0, weapon: myPlayer.weapon });
         if (isPublicMode) socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
@@ -854,6 +1079,9 @@
 
     function shoot() {
       const w = WEAPONS[myPlayer.weapon]; let bx = myPlayer.x + myPlayer.width/2, by = myPlayer.y + myPlayer.height/2;
+      // Sound
+      const shotKey = myPlayer.weapon === 'sniper' ? 'sniper_shot' : myPlayer.weapon === 'shotgun' ? 'shotgun_shot' : 'rifle_shot';
+      SFX.play(shotKey, { volume: myPlayer.weapon === 'sniper' ? 0.9 : 0.7, pitch: 0.95 + Math.random() * 0.1 });
       for (let p = 0; p < w.pellets; p++) {
         let spread = (Math.random() - 0.5) * w.spread; let angle = myPlayer.aimAngle + spread;
         let bvx = Math.cos(angle) * w.speed, bvy = Math.sin(angle) * w.speed;
@@ -909,6 +1137,7 @@
         timer: bt.timer, bounces: 0, ownerId: socket?.id || 'local',
         type: activeBombType, stuck: false
       };
+      SFX.play('bomb_throw', { volume: 0.7, pitch: 0.9 + Math.random() * 0.2 });
       if (activeBombType === 'time') {
         stickyBombs.push({ ...bomb, armed: false, armDelay: 800, createdAt: now });
       } else {
@@ -926,6 +1155,7 @@
       if (bType === 'smell') {
         // Create lingering gas cloud instead of instant explosion
         smellClouds.push({ x: b.x, y: b.y, radius: RADIUS, maxRadius: RADIUS, opacity: 0.75, life: 5.0, ownerId: b.ownerId, lastDmgTime: 0 });
+        SFX.playAt('explosion_smell', b.x, b.y, { maxDist: 1100, baseVol: 0.8 });
         killFeed.push({ text: `💨 GAS CLOUD DEPLOYED!`, timer: 2.5, color: '#2ecc71' });
         screenShake = 0.6;
         return;
@@ -935,6 +1165,9 @@
       const exColor = bType === 'die' ? '#e74c3c' : bType === 'time' ? '#a29bfe' : '#f1c40f';
       explosions.push({ x: b.x, y: b.y, r: 0, maxR: RADIUS, opacity: 1.0, color: exColor });
       screenShake = bType === 'die' ? 2.5 : 1.8;
+      // Explosion sound
+      const expKey = bType === 'die' ? 'explosion_die' : bType === 'time' ? 'explosion_frag' : 'explosion_frag';
+      SFX.playAt(expKey, b.x, b.y, { maxDist: 1400, baseVol: 1.0, pitch: bType === 'die' ? 1.25 : 1.0 });
       const msgs = { regular: '💥 BOOM!', die: '☠️ DEATH BLAST!', time: '⏱️ TRIGGERED!' };
       killFeed.push({ text: msgs[bType] || '💥 BOOM!', timer: 2.2, color: exColor });
 
@@ -989,7 +1222,11 @@
       else { const wx = (mouseX / currentZoom) + camera.x, wy = (mouseY / currentZoom) + camera.y; myPlayer.aimAngle = Math.atan2(wy - (myPlayer.y + myPlayer.height/2), wx - (myPlayer.x + myPlayer.width/2)); }
 
       let newBiome = targetBiome; for (let b of biomes) { if (myPlayer.x < b.endX) { newBiome = b; break; } }
-      if (newBiome !== targetBiome) { targetBiome = newBiome; biomePopupName = targetBiome.name; biomePopupOpacity = 2.5; }
+      if (newBiome !== targetBiome) {
+        targetBiome = newBiome; biomePopupName = targetBiome.name; biomePopupOpacity = 2.5;
+        const ambienceKey = BIOME_AMBIENCE[targetBiome.name];
+        if (ambienceKey) SFX.setAmbience(ambienceKey);
+      }
       if (biomePopupOpacity > 0) biomePopupOpacity -= 0.02;
 
       currentSky[0] += (targetBiome.sky[0] - currentSky[0]) * 0.05; currentSky[1] += (targetBiome.sky[1] - currentSky[1]) * 0.05; currentSky[2] += (targetBiome.sky[2] - currentSky[2]) * 0.05; updateParticles();
@@ -998,7 +1235,9 @@
       let prevX = myPlayer.x; if (keys.a) myPlayer.x -= spd; if (keys.d) myPlayer.x += spd;
       for (let obj of map) { if (myPlayer.x < obj.x+obj.w && myPlayer.x+myPlayer.width > obj.x && myPlayer.y < obj.y+obj.h && myPlayer.y+myPlayer.height > obj.y) myPlayer.x = prevX; }
       myPlayer.dy += myPlayer.gravity; let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
-      if (keys.w && (myPlayer.fuel > 0 || hasUnlimitedJetpack)) { myPlayer.dy -= myPlayer.jetpackForce; if (!hasUnlimitedJetpack) myPlayer.fuel -= 1.0; } else if (!keys.w && myPlayer.fuel < myPlayer.maxFuel) myPlayer.fuel += 1.5;
+      const jetpackActive = keys.w && (myPlayer.fuel > 0 || hasUnlimitedJetpack);
+      if (jetpackActive) { myPlayer.dy -= myPlayer.jetpackForce; if (!hasUnlimitedJetpack) myPlayer.fuel -= 1.0; SFX.startJetpack(); }
+      else { if (!keys.w && myPlayer.fuel < myPlayer.maxFuel) myPlayer.fuel += 1.5; SFX.stopJetpack(); }
       myPlayer.y += myPlayer.dy;
       for (let obj of map) { if (myPlayer.x < obj.x+obj.w && myPlayer.x+myPlayer.width > obj.x && myPlayer.y < obj.y+obj.h && myPlayer.y+myPlayer.height > obj.y) { if (myPlayer.dy > 0) myPlayer.y = obj.y - myPlayer.height; else if (myPlayer.dy < 0) myPlayer.y = obj.y + obj.h; myPlayer.dy = 0; } }
 
@@ -1011,11 +1250,16 @@
         let p = powerups[i];
         if (myPlayer.x < p.x+p.w && myPlayer.x+myPlayer.width > p.x && myPlayer.y < p.y+p.h && myPlayer.y+myPlayer.height > p.y) {
           if (p.type === 'health') { myPlayer.health = Math.min(myPlayer.maxHealth, myPlayer.health + 50); killFeed.push({ text: '+ MEDPACK (+50 HP)', timer: 3.0, color: '#2ecc71' }); } else if (p.type === 'jetpack') { myPlayer.unlimitedFuelTimer = t + 10000; myPlayer.fuel = myPlayer.maxFuel; killFeed.push({ text: '+ INFINITE JETPACK (10s)', timer: 3.0, color: '#00cec9' }); } else if (p.type === 'shield') { myPlayer.shield = myPlayer.maxShield; killFeed.push({ text: '+ SHIELD ACTIVE', timer: 3.0, color: '#74b9ff' }); } else if (p.type === 'speed') { myPlayer.speedBoostTimer = t + 7000; killFeed.push({ text: '+ SPEED BOOST (7s)', timer: 3.0, color: '#fdcb6e' }); } else if (p.type === 'shotgun' || p.type === 'sniper') { myPlayer.weapon = p.type; const w = WEAPONS[p.type]; myPlayer.ammo = w.ammo; myPlayer.maxAmmo = w.ammo; myPlayer.isReloading = false; myPlayer.weaponExpire = t + 30000; weaponPickupAnnounce = { text: `⚡ ${w.name} EQUIPPED`, opacity: 3.5, color: w.crateColor }; }
+          SFX.play('pickup_powerup', { volume: 0.7, pitch: 0.9 + Math.random() * 0.2 });
           powerups.splice(i, 1);
         }
       }
 
-      if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) { myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false; }
+      if (myPlayer.isReloading && t - myPlayer.reloadStartTime > WEAPONS[myPlayer.weapon].reload) {
+        myPlayer.ammo = myPlayer.maxAmmo; myPlayer.isReloading = false;
+        const relKey = myPlayer.weapon === 'sniper' ? 'sniper_reload' : myPlayer.weapon === 'shotgun' ? 'shotgun_reload' : 'rifle_reload';
+        SFX.play(relKey, { volume: 0.6 });
+      }
       if (keys.fire && t - myPlayer.lastShotTime > WEAPONS[myPlayer.weapon].fireRate) { if (myPlayer.ammo > 0 && !myPlayer.isReloading) { shoot(); myPlayer.ammo--; myPlayer.lastShotTime = t; if (myPlayer.ammo === 0) { myPlayer.isReloading = true; myPlayer.reloadStartTime = t; } } }
 
       for (let i = bullets.length - 1; i >= 0; i--) {
@@ -1030,6 +1274,7 @@
                     damageNumbers.push({ x: np.x + 20, y: np.y - 5, value: dmg, vy: -2.5, opacity: 2.2, color: b.weapon === 'sniper' ? '#a29bfe' : b.weapon === 'shotgun' ? '#e67e22' : '#f1c40f', size: b.weapon === 'sniper' ? 22 : 16 });
                     if (np.localHealth <= 0 && !np.countedKill) { 
                         myPlayer.kills++; myPlayer.killStreak++; np.countedKill = true; 
+                        SFX.play('kill_confirm', { volume: 0.9 });
                         killFeed.push({ text: `☠ YOU → ${np.name}`, timer: 5.0, color: '#ff4757' }); 
                         spawnCoins(np.x + 20, np.y + 20); 
                         checkStreak(myPlayer.killStreak);
@@ -1066,6 +1311,7 @@
           destroyed = true;
           if (myPlayer.invincibleTimer <= t && myPlayer.health > 0) {
             let dmg = 15;
+            SFX.play('hit_taken', { volume: 0.75, pitch: 0.9 + Math.random() * 0.2 });
             if (myPlayer.shield > 0) { let abs = Math.min(myPlayer.shield, dmg); myPlayer.shield -= abs; dmg -= abs; }
             if (dmg > 0) { myPlayer.health -= dmg; screenShake = 0.9; damageNumbers.push({ x: myPlayer.x + 20, y: myPlayer.y - 5, value: -dmg, vy: -3, opacity: 2.2, color: '#e74c3c', size: 18 }); if (myPlayer.health <= 0) killPlayer(); } 
             else { screenShake = 0.4; damageNumbers.push({ x: myPlayer.x + 20, y: myPlayer.y - 5, value: 'BLOCKED', vy: -3, opacity: 2.2, color: '#74b9ff', size: 14 }); }
@@ -1081,8 +1327,9 @@
 
       // ── BOMB PHYSICS ──
       for (let i = bombs.length - 1; i >= 0; i--) {
-        const b = bombs[i];
+        const b = bombs[i]; if (!b.id) b.id = `b_${i}_${b.type}_${Date.now()}`;
         b.timer -= 16; b.vy += 0.45; b.x += b.vx; b.y += b.vy;
+        SFX.startFuse(b.id);
         // Platform collision (bounce)
         for (const obj of map) {
           if (b.x < obj.x+obj.w && b.x+10 > obj.x && b.y < obj.y+obj.h && b.y+10 > obj.y) {
@@ -1094,7 +1341,7 @@
         // Clamp to world
         if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx) * 0.5; }
         if (b.x > worldWidth) { b.x = worldWidth; b.vx = -Math.abs(b.vx) * 0.5; }
-        if (b.timer <= 0 || b.y > worldHeight + 80) { explodeBomb(b); bombs.splice(i, 1); }
+        if (b.timer <= 0 || b.y > worldHeight + 80) { SFX.stopFuse(b.id); explodeBomb(b); bombs.splice(i, 1); }
       }
       // ── EXPLOSION FADE ──
       for (let i = explosions.length - 1; i >= 0; i--) {
@@ -1115,7 +1362,7 @@
           if (b.x < 0 || b.x > worldWidth) { b.stuck = true; b.vx = 0; b.vy = 0; }
         }
         // Arm after delay
-        if (!b.armed && t - b.createdAt > b.armDelay) b.armed = true;
+        if (!b.armed && t - b.createdAt > b.armDelay) { b.armed = true; SFX.play('sticky_arm', { volume: 0.6 }); }
         // Trigger when enemy is near
         if (b.armed && b.ownerId === (socket?.id || 'local')) {
           let triggered = false;
@@ -1127,7 +1374,7 @@
           if (!triggered && isPublicMode) {
             for (const npc of npcs) { if (npc.health <= 0) continue; if (Math.hypot(npc.x + 20 - b.x, npc.y + 20 - b.y) < triggerR) { triggered = true; break; } }
           }
-          if (triggered) { explodeBomb({ ...b, type: 'time' }); stickyBombs.splice(i, 1); continue; }
+          if (triggered) { SFX.play('sticky_trigger', { volume: 0.8 }); explodeBomb({ ...b, type: 'time' }); stickyBombs.splice(i, 1); continue; }
         }
         // Safety timeout (15 seconds)
         if (t - b.createdAt > 15000) { explodeBomb({ ...b, type: 'time' }); stickyBombs.splice(i, 1); }
@@ -1190,6 +1437,7 @@
           myPlayer.bombInventory[btype] = (myPlayer.bombInventory[btype] || 0) + bp.amount;
           myPlayer.bombs = Object.values(myPlayer.bombInventory).reduce((a,b)=>a+b, 0);
           const bt = BOMB_TYPES[btype];
+          SFX.play('pickup_bomb', { volume: 0.75, pitch: 0.85 + Math.random() * 0.3 });
           killFeed.push({ text: `${bt.icon} +${bp.amount} ${bt.label} BOMB`, timer: 3.0, color: bt.color });
           if (isTouchMode) updateBombUI();
           bombPickups.splice(i, 1);
