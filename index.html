@@ -814,25 +814,21 @@
     function checkOverlap(nx, ny, nw, nh) { const PAD = 40; for (let obj of map) { if (obj.type === 'wall' || obj.type === 'floor') continue; if (nx < obj.x + obj.w + PAD && nx + nw + PAD > obj.x && ny < obj.y + obj.h + PAD && ny + nh + PAD > obj.y) return true; } return false; }
     function spawnPowerup(x, y, rand) { if (rand() > 0.45) return; const types = ['health', 'jetpack', 'shield', 'speed', 'shotgun', 'sniper']; const weights = [0.28, 0.18, 0.14, 0.12, 0.16, 0.12]; let rr = rand(), cum = 0; for (let i = 0; i < types.length; i++) { cum += weights[i]; if (rr < cum) { powerups.push({ x, y, w: 30, h: 30, type: types[i] }); return; } } powerups.push({ x, y, w: 30, h: 30, type: 'health' }); }
 
-    function spawnBombPickup(x, y, rand) {
-      if (rand() > 0.35) return; // ~35% chance
+    function spawnBombPickup(x, y) {
+      if (Math.random() > 0.30) return; // ~30% chance per platform
       const types = ['regular', 'smell', 'die', 'time'];
       const weights = [0.40, 0.25, 0.20, 0.15];
-      let rr = rand(), cum = 0;
-      let btype = 'regular';
+      let rr = Math.random(), cum = 0, btype = 'regular';
       for (let i = 0; i < types.length; i++) { cum += weights[i]; if (rr < cum) { btype = types[i]; break; } }
       bombPickups.push({ x, y, w: 28, h: 28, bombType: btype, amount: btype === 'die' ? 1 : 2, pulse: Math.random() * Math.PI * 2 });
     }
 
     function buildMap() {
       map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth,y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight-50, w: worldWidth, h: 50, type: "floor" } ]; powerups = []; bombPickups = []; let rand = mulberry32(12345);
-      let cx = 200; while (cx < worldWidth - 400) { let pw = 130 + rand() * 270, py = worldHeight - 130 - rand() * 520; if (!checkOverlap(cx, py, pw, 28)) { map.push({ x: cx, y: py, w: pw, h: 28, type: "plat", tier: 0 }); if (rand() > 0.45) { let cw = 38 + rand() * 28, ch = 50 + rand() * 40; if(!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) { map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py - 32, rand); } cx += pw + 40 + rand() * 140; }
-      cx = 350; while (cx < worldWidth - 600) { let pw = 110 + rand() * 200, py = worldHeight - 650 - rand() * 380; if (!checkOverlap(cx, py, pw, 24)) { let isMoving = rand() > 0.68; let plat = { x: cx, y: py, w: pw, h: 24, type: "plat", tier: 1 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 110 + rand() * 220; plat.moveSpeed = 0.00045 + rand() * 0.00065; plat.movePhase = rand() * Math.PI * 2; } map.push(plat); if (rand() > 0.5) { let cw = 32 + rand() * 24, ch = 28 + rand() * 28; if (!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) { map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py - 32, rand); } cx += pw + 80 + rand() * 240; }
-      cx = 500; while (cx < worldWidth - 800) { let pw = 90 + rand() * 170, py = worldHeight - 1100 - rand() * 480; if (!checkOverlap(cx, py, pw, 22)) { let isMoving = rand() > 0.45; let plat = { x: cx, y: py, w: pw, h: 22, type: "plat", tier: 2 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 90 + rand() * 200; plat.moveSpeed = 0.0006 + rand() * 0.001; plat.movePhase = rand() * Math.PI * 2; plat.moveY = rand() > 0.55; if (plat.moveY) { plat.moveBaseY = py; plat.moveRangeY = 60 + rand() * 100; plat.moveSpeedY = 0.0004 + rand() * 0.0006; plat.movePhaseY = rand() * Math.PI * 2; } } map.push(plat); spawnPowerup(cx + pw * rand(), py - 32, rand); } cx += pw + 120 + rand() * 320; }
-      let brandBP = mulberry32(99999);
-      cx = 700; while (cx < worldWidth - 1000) { let pw = 120 + rand() * 280, py = 120 + rand() * 420; if (!checkOverlap(cx, py, pw, 20)) { let isMoving = rand() > 0.6; let plat = { x: cx, y: py, w: pw, h: 20, type: "plat", tier: 3 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 80 + rand() * 180; plat.moveSpeed = 0.0003 + rand() * 0.0005; plat.movePhase = rand() * Math.PI * 2; } map.push(plat); if (rand() > 0.5) { let cw = 30 + rand() * 25, ch = 20 + rand() * 24; if(!checkOverlap(cx + pw * rand() - 15, py - ch, cw, ch)) { map.push({ x: cx + pw * rand() - 15, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py + 22, rand); } cx += pw + 220 + rand() * 500; }
-      // Bomb pickup spawning across the map
-      for (let bpx = 500; bpx < worldWidth - 500; bpx += 600 + brandBP() * 800) { let bpy = worldHeight - 200 - brandBP() * 1200; spawnBombPickup(bpx + brandBP() * 100, bpy, brandBP); }
+      let cx = 200; while (cx < worldWidth - 400) { let pw = 130 + rand() * 270, py = worldHeight - 130 - rand() * 520; if (!checkOverlap(cx, py, pw, 28)) { map.push({ x: cx, y: py, w: pw, h: 28, type: "plat", tier: 0 }); if (rand() > 0.45) { let cw = 38 + rand() * 28, ch = 50 + rand() * 40; if(!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) { map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py - 32, rand); spawnBombPickup(cx + pw * 0.5, py - 32); } cx += pw + 40 + rand() * 140; }
+      cx = 350; while (cx < worldWidth - 600) { let pw = 110 + rand() * 200, py = worldHeight - 650 - rand() * 380; if (!checkOverlap(cx, py, pw, 24)) { let isMoving = rand() > 0.68; let plat = { x: cx, y: py, w: pw, h: 24, type: "plat", tier: 1 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 110 + rand() * 220; plat.moveSpeed = 0.00045 + rand() * 0.00065; plat.movePhase = rand() * Math.PI * 2; } map.push(plat); if (rand() > 0.5) { let cw = 32 + rand() * 24, ch = 28 + rand() * 28; if (!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) { map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py - 32, rand); spawnBombPickup(cx + pw * 0.6, py - 32); } cx += pw + 80 + rand() * 240; }
+      cx = 500; while (cx < worldWidth - 800) { let pw = 90 + rand() * 170, py = worldHeight - 1100 - rand() * 480; if (!checkOverlap(cx, py, pw, 22)) { let isMoving = rand() > 0.45; let plat = { x: cx, y: py, w: pw, h: 22, type: "plat", tier: 2 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 90 + rand() * 200; plat.moveSpeed = 0.0006 + rand() * 0.001; plat.movePhase = rand() * Math.PI * 2; plat.moveY = rand() > 0.55; if (plat.moveY) { plat.moveBaseY = py; plat.moveRangeY = 60 + rand() * 100; plat.moveSpeedY = 0.0004 + rand() * 0.0006; plat.movePhaseY = rand() * Math.PI * 2; } } map.push(plat); spawnPowerup(cx + pw * rand(), py - 32, rand); spawnBombPickup(cx + pw * 0.4, py - 32); } cx += pw + 120 + rand() * 320; }
+      cx = 700; while (cx < worldWidth - 1000) { let pw = 120 + rand() * 280, py = 120 + rand() * 420; if (!checkOverlap(cx, py, pw, 20)) { let isMoving = rand() > 0.6; let plat = { x: cx, y: py, w: pw, h: 20, type: "plat", tier: 3 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 80 + rand() * 180; plat.moveSpeed = 0.0003 + rand() * 0.0005; plat.movePhase = rand() * Math.PI * 2; } map.push(plat); if (rand() > 0.5) { let cw = 30 + rand() * 25, ch = 20 + rand() * 24; if(!checkOverlap(cx + pw * rand() - 15, py - ch, cw, ch)) { map.push({ x: cx + pw * rand() - 15, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py + 22, rand); spawnBombPickup(cx + pw * 0.55, py + 22); } cx += pw + 220 + rand() * 500; }
       let tx = 600; while (tx < worldWidth - 500) { let tH = 200 + rand() * 600, tY = worldHeight - 700 - rand() * 600, tW = 20 + rand() * 15; if (!checkOverlap(tx, tY, tW, tH)) { map.push({ x: tx, y: tY, w: tW, h: tH, type: "cover" }); for (let gy = tY + 40; gy < tY + tH - 40; gy += 100 + rand() * 80) { if(!checkOverlap(tx - 80 - rand() * 40, gy, 70 + rand() * 30, 16)) { map.push({ x: tx - 80 - rand() * 40, y: gy, w: 70 + rand() * 30, h: 16, type: "plat", tier: 1 }); } } } tx += 500 + rand() * 900; }
       let fx = 1000; while (fx < worldWidth - 1200) { let baseY = 400 + rand() * 800, clusterX = fx; for (let ci = 0; ci < 3 + Math.floor(rand() * 3); ci++) { let pw = 80 + rand() * 120, py = baseY + (rand() - 0.5) * 200; if(!checkOverlap(clusterX, py, pw, 20)) { map.push({ x: clusterX, y: py, w: pw, h: 20, type: "plat", tier: 2 }); spawnPowerup(clusterX + pw/2 - 15, py - 32, rand); } clusterX += pw + 30 + rand() * 60; } fx += 1200 + rand() * 1500; }
     }
@@ -929,7 +925,7 @@
 
       if (bType === 'smell') {
         // Create lingering gas cloud instead of instant explosion
-        smellClouds.push({ x: b.x, y: b.y, radius: RADIUS, maxRadius: RADIUS, opacity: 0.75, life: 5.0, ownerId: b.ownerId });
+        smellClouds.push({ x: b.x, y: b.y, radius: RADIUS, maxRadius: RADIUS, opacity: 0.75, life: 5.0, ownerId: b.ownerId, lastDmgTime: 0 });
         killFeed.push({ text: `💨 GAS CLOUD DEPLOYED!`, timer: 2.5, color: '#2ecc71' });
         screenShake = 0.6;
         return;
@@ -1147,18 +1143,21 @@
         // Damage player if inside cloud and not owner
         if (sc.ownerId !== (socket?.id || 'local')) {
           const d = Math.hypot(myPlayer.x + 20 - sc.x, myPlayer.y + 20 - sc.y);
-          if (d < sc.radius && myPlayer.health > 0 && myPlayer.invincibleTimer <= t && Math.floor(t / 500) !== Math.floor((t - 16) / 500)) {
+          if (d < sc.radius && myPlayer.health > 0 && myPlayer.invincibleTimer <= t && t - sc.lastDmgTime > 500) {
+            sc.lastDmgTime = t;
             const dmg = BOMB_TYPES.smell.damage;
             myPlayer.health -= dmg; damageNumbers.push({ x: myPlayer.x+20, y: myPlayer.y-10, value: -dmg, vy: -2, opacity: 1.8, color: '#2ecc71', size: 14 });
             if (myPlayer.health <= 0) killPlayer();
           }
         }
         // Damage network players if I own the cloud
-        if (sc.ownerId === (socket?.id || 'local')) {
+        if (sc.ownerId === (socket?.id || 'local') && t - sc.lastDmgTime > 500) {
+          let hitSomeone = false;
           for (let id in networkPlayers) {
             const np = networkPlayers[id]; if (np.health <= 0) continue;
             const d = Math.hypot(np.x + 20 - sc.x, np.y + 20 - sc.y);
-            if (d < sc.radius && Math.floor(t / 500) !== Math.floor((t - 16) / 500)) {
+            if (d < sc.radius) {
+              hitSomeone = true;
               if (np.localHealth === undefined) np.localHealth = np.health;
               const dmg = BOMB_TYPES.smell.damage;
               np.localHealth -= dmg;
@@ -1176,11 +1175,10 @@
             for (const npc of npcs) {
               if (npc.health <= 0) continue;
               const d = Math.hypot(npc.x + 20 - sc.x, npc.y + 20 - sc.y);
-              if (d < sc.radius && Math.floor(t / 500) !== Math.floor((t - 16) / 500)) {
-                socket.emit('damageBot', { botId: npc.id, damage: BOMB_TYPES.smell.damage });
-              }
+              if (d < sc.radius) { hitSomeone = true; socket.emit('damageBot', { botId: npc.id, damage: BOMB_TYPES.smell.damage }); }
             }
           }
+          if (hitSomeone) sc.lastDmgTime = t;
         }
       }
 
@@ -1371,10 +1369,18 @@
 
       drawHUDBar(HX, y1, HW, HH, myPlayer.health/myPlayer.maxHealth, '#2d0000', '#e74c3c', `HP  ${Math.max(0,myPlayer.health)}`, 'white', fSize);
       if (myPlayer.shield > 0) drawHUDBar(HX, y2, HW, HH, myPlayer.shield/myPlayer.maxShield, '#00122a', '#74b9ff', `SHIELD  ${myPlayer.shield}`, 'white', fSize);
-      const jY = myPlayer.shield > 0 ? y3 : y2; const aY = jY + gap, kY = aY + gap, wY = kY + gap; let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
+      const jY = myPlayer.shield > 0 ? y3 : y2; const aY = jY + gap, kY = aY + gap, wY = kY + gap + gap; let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
       drawHUDBar(HX, jY, HW, HH, hasUnlimitedJetpack ? 1 : myPlayer.fuel/myPlayer.maxFuel, '#002020', hasUnlimitedJetpack?'#00cec9':'#3498db', hasUnlimitedJetpack?'JETPACK ∞':'JETPACK', 'white', fSize);
       ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, aY, HW+4, HH+4); ctx.fillStyle=(myPlayer.ammo===0)?'rgba(80,0,0,0.8)':'rgba(255,255,255,0.06)'; ctx.fillRect(HX, aY+2, HW, HH); ctx.fillStyle=(myPlayer.ammo===0)?'#e74c3c':'white'; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(myPlayer.isReloading ? 'RELOADING...' : `AMMO  ${myPlayer.ammo} / ${myPlayer.maxAmmo}`, HX+6, aY+HH-3);
       ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, kY, HW+4, HH+4); ctx.fillStyle='rgba(241,196,15,0.1)'; ctx.fillRect(HX, kY+2, HW, HH); ctx.fillStyle='#f1c40f'; ctx.font=`bold ${fSize+1}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`KILLS  ${myPlayer.kills}  STREAK ${myPlayer.killStreak}`, HX+6, kY+HH-3);
+      // Bomb inventory bar
+      const bY = kY + gap; const activeBT = BOMB_TYPES[activeBombType];
+      ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, bY, HW+4, HH+4);
+      ctx.fillStyle = activeBT.color + '18'; ctx.fillRect(HX, bY+2, HW, HH);
+      ctx.strokeStyle = activeBT.color + '55'; ctx.lineWidth=1; ctx.strokeRect(HX, bY+2, HW, HH);
+      const totalBombs = Object.values(myPlayer.bombInventory).reduce((a,b)=>a+b,0);
+      const bombStr = totalBombs === 0 ? '💣 NO BOMBS' : `${activeBT.icon} ${activeBT.label}  ×${myPlayer.bombInventory[activeBombType]}  [${totalBombs} tot]`;
+      ctx.fillStyle = totalBombs === 0 ? '#e74c3c' : activeBT.color; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(bombStr, HX+6, bY+HH-3);
       let wTimeStr = ""; if (myPlayer.weapon !== 'rifle') wTimeStr = ` [${Math.ceil((myPlayer.weaponExpire - t) / 1000)}s]`; const wCol = wDef.crateColor || '#bdc3c7'; ctx.fillStyle='rgba(0,0,0,0.65)'; ctx.fillRect(HX-2, wY, HW+4, HH+4); ctx.fillStyle = wCol + '22'; ctx.fillRect(HX, wY+2, HW, HH); ctx.strokeStyle = wCol; ctx.lineWidth=1; ctx.strokeRect(HX, wY+2, HW, HH); ctx.fillStyle = wCol; ctx.font=`bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚙ ${wDef.name}${wTimeStr}`, HX+6, wY+HH-3);
       if (myPlayer.speedBoostTimer > t) { let remaining = Math.ceil((myPlayer.speedBoostTimer - t) / 1000); ctx.fillStyle='#fdcb6e'; ctx.font=`bold ${fSize-2}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText(`⚡ SPEED x1.65  ${remaining}s`, HX+6, wY+HH+(isMob?14:18)); }
       if (invincible) { ctx.save(); ctx.globalAlpha = 0.6 + Math.sin(t * 0.02) * 0.4; ctx.fillStyle = '#55efc4'; ctx.font = `bold ${fSize}px "Share Tech Mono",monospace`; ctx.textAlign='left'; ctx.fillText('★ INVINCIBLE', HX+6, wY+HH+(isMob?28:36)); ctx.restore(); }
