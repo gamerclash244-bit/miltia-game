@@ -38,8 +38,22 @@
     .color-btn.selected { border-color: white; transform: scale(1.15); box-shadow: 0 0 12px rgba(255,255,255,0.4); }
     #leaderboardPanel { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); width: 300px; background: rgba(8, 12, 20, 0.97); border: 1px solid rgba(241,196,15,0.45); border-radius: 4px; padding: 18px; color: white; z-index: 25; display: none; box-shadow: 0 0 32px rgba(241,196,15,0.18); }
     #leaderboardPanel h3 { margin: 0 0 12px 0; font-size: 1.1rem; color: var(--gold); text-align: center; text-transform: uppercase; letter-spacing: 5px; }
-    #bombBtn { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); width: 54px; height: 54px; background: rgba(30,20,0,0.85); border: 2px solid rgba(241,196,15,0.6); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.5rem; z-index: 15; cursor: pointer; user-select: none; box-shadow: 0 0 12px rgba(241,196,15,0.3); }
+    #bombBtn { position: fixed; right: 18px; bottom: 110px; width: 60px; height: 60px; background: rgba(30,20,0,0.85); border: 2px solid rgba(241,196,15,0.6); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1.6rem; z-index: 15; cursor: pointer; user-select: none; box-shadow: 0 0 12px rgba(241,196,15,0.3); }
     #bombCount { position: absolute; top: -4px; right: -4px; background: #e74c3c; color: white; font-size: 0.65rem; font-family: 'Share Tech Mono',monospace; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+    #bombTypeLabel { position: absolute; bottom: -18px; left: 50%; transform: translateX(-50%); font-size: 0.55rem; font-family: 'Share Tech Mono',monospace; color: #f1c40f; white-space: nowrap; letter-spacing: 1px; }
+    #bombCycleBtn { position: fixed; right: 84px; bottom: 124px; width: 36px; height: 36px; background: rgba(20,20,20,0.85); border: 1px solid rgba(255,255,255,0.25); border-radius: 50%; display: none; align-items: center; justify-content: center; font-size: 1rem; z-index: 15; cursor: pointer; user-select: none; }
+    #voiceChatBar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); background: rgba(8,12,20,0.95); border: 1px solid rgba(85,239,196,0.25); border-top-left-radius: 8px; border-top-right-radius: 8px; padding: 6px 14px; display: none; align-items: center; gap: 10px; z-index: 20; }
+    #voiceMicBtn { background: none; border: 1px solid #55efc4; color: #55efc4; border-radius: 50%; width: 34px; height: 34px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+    #voiceMicBtn.muted { border-color: #e74c3c; color: #e74c3c; }
+    #voiceMicBtn.speaking { background: rgba(85,239,196,0.2); box-shadow: 0 0 8px rgba(85,239,196,0.5); }
+    #voicePeers { display: flex; gap: 6px; align-items: center; font-family: 'Share Tech Mono',monospace; font-size: 0.7rem; color: #7f8c8d; }
+    .voice-peer { display: flex; align-items: center; gap: 3px; padding: 2px 6px; border-radius: 10px; background: rgba(255,255,255,0.05); transition: background 0.2s; }
+    .voice-peer.speaking { background: rgba(85,239,196,0.15); color: #55efc4; }
+    .voice-peer.muted { opacity: 0.45; }
+    /* Lobby voice toggle */
+    #lobbyVoiceToggle { margin-top: 8px; display: flex; align-items: center; gap: 10px; font-family: 'Share Tech Mono',monospace; font-size: 0.82rem; color: #bdc3c7; cursor: pointer; padding: 6px 12px; border: 1px solid rgba(85,239,196,0.2); border-radius: 3px; background: rgba(85,239,196,0.05); transition: background 0.15s; user-select: none; }
+    #lobbyVoiceToggle:hover { background: rgba(85,239,196,0.12); }
+    #lobbyVoiceToggle.active { border-color: rgba(85,239,196,0.5); color: #55efc4; }
     .lb-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 1rem; }
     .lb-table th { border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 10px; color: #7f8c8d; font-size: 0.8rem; font-family: 'Share Tech Mono', monospace; }
     .lb-table td { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
@@ -133,6 +147,15 @@
 <body>
 
   <div id="kickedOverlay"><h2>⚠ Session Terminated</h2><p id="kickedMsg">Your callsign logged in from another device.</p><button class="ui-btn" onclick="returnToLogin()">Return to Login</button></div>
+
+  <!-- Voice Chat HUD (in-game) -->
+  <div id="voiceChatBar">
+    <button id="voiceMicBtn" title="Toggle Mic">🎙️</button>
+    <div id="voicePeers"></div>
+  </div>
+
+  <!-- Mobile bomb cycle button -->
+  <div id="bombCycleBtn" title="Cycle bomb type">🔄</div>
 
   <div id="loginScreen" class="menu-screen">
     <h1>Database Uplink</h1>
@@ -230,6 +253,7 @@
     <button id="readyBtn" class="ui-btn action">Ready Up</button>
     <button id="startMatchBtn" class="ui-btn" style="display:none;">Start Match ▶</button>
     <button id="lobbyLeaveBtn" class="ui-btn secondary">Leave Room</button>
+    <div id="lobbyVoiceToggle">🎙️ <span id="lobbyVoiceLabel">Enable Voice Chat</span></div>
   </div>
 
   <!-- WIN SCREEN -->
@@ -279,7 +303,7 @@
   <div id="teamHUD"></div>
   <div id="roomMiniLeaderboard"><h4>ROOM KILLS</h4><div id="rmlBody"></div></div>
 
-  <div id="bombBtn" title="Throw Bomb [G]">💣<div id="bombCount">2</div></div>
+  <div id="bombBtn" title="Throw Bomb [G]"><span id="bombIcon">💣</span><div id="bombCount">2</div><div id="bombTypeLabel">FRAG</div></div>
 
   <canvas id="gameCanvas"></canvas>
 
@@ -302,10 +326,18 @@
     let socket = null; let networkPlayers = {}; let networkBullets = []; let npcs = []; let isOnline = false; let lastSyncTime = 0;
     let isHost = false; let myTeam = null; let matchState = 'none'; // 'none'|'waiting'|'playing'|'ended'
     let matchTimeLeft = 0; let roomKillGoal = 10; let roomMode = 'kills'; let isTeamMode = false;
-    let roomMiniLB = []; // mini leaderboard for room match
-    let publicLeaderboardData = []; // top players for canvas mini-LB
-    let bombs = []; let explosions = []; let lastBombTime = 0;
+    let roomMiniLB = []; let publicLeaderboardData = [];
+    let bombs = []; let explosions = []; let lastBombTime = 0; let smellClouds = []; let stickyBombs = [];
+    let bombPickups = []; // collectible bomb crates on the map
     let isPublicMode = true; let currentRoomCode = "";
+
+    const BOMB_TYPES = {
+      regular: { icon: '💣', label: 'FRAG',  color: '#f1c40f', radius: 130, damage: 65,  timer: 2200 },
+      smell:   { icon: '💨', label: 'SMELL', color: '#2ecc71', radius: 110, damage: 8,   timer: 1800 },
+      die:     { icon: '☠️', label: 'DIE',   color: '#e74c3c', radius: 70,  damage: 120, timer: 1600 },
+      time:    { icon: '⏱️', label: 'STICKY',color: '#a29bfe', radius: 120, damage: 75,  timer: 0    },
+    };
+    let activeBombType = 'regular';
     
     const worldWidth = 10000; const worldHeight = 2500; const camera = { x: 0, y: 0 };
     let map = []; let powerups = []; let currentZoom = 1.0;
@@ -319,7 +351,8 @@
     const biomes = [ { name: "GREENLANDS", endX: 2000, sky: [135,206,235], ground: "#55efc4", pType: "pollen", pColor: "rgba(255,255,255,0.6)" }, { name: "SAVANNA", endX: 4000, sky: [230,126,34], ground: "#d35400", pType: "dust", pColor: "rgba(211,84,0,0.5)" }, { name: "ASH WASTELAND", endX: 6000, sky: [44,62,80], ground: "#7f8c8d", pType: "ash", pColor: "rgba(30,30,30,0.8)" }, { name: "FROST PEAKS", endX: 8000, sky: [176,224,230], ground: "#ecf0f1", pType: "snow", pColor: "rgba(255,255,255,0.9)" }, { name: "THE VOID", endX: 10000, sky: [20,0,35], ground: "#8e44ad", pType: "spark", pColor: "rgba(155,89,182,0.8)" } ];
     let targetBiome = biomes[0]; let currentSky = [...targetBiome.sky]; let biomePopupName = targetBiome.name; let biomePopupOpacity = 0; let particles = []; const maxParticles = 60;
 
-    const myPlayer = { x: 0, y: 0, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0, health: 100, maxHealth: 100, fuel: 250, maxFuel: 250, ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, lastShotTime: 0, name: "Unknown", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0, lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100, weapon: 'rifle', weaponExpire: 0, shield: 0, maxShield: 50, speedBoostTimer: 0, killStreak: 0, invincibleTimer: 0 };
+    const myPlayer = { x: 0, y: 0, width: 40, height: 40, dx: 0, dy: 0, speed: 6, jetpackForce: 0.9, gravity: 0.35, aimAngle: 0, health: 100, maxHealth: 100, fuel: 250, maxFuel: 250, ammo: 15, maxAmmo: 15, isReloading: false, reloadStartTime: 0, lastShotTime: 0, name: "Unknown", color: "#e74c3c", kills: 0, unlimitedFuelTimer: 0, lastX: 0, lastY: 0, lastAim: 0, lastHealth: 100, weapon: 'rifle', weaponExpire: 0, shield: 0, maxShield: 50, speedBoostTimer: 0, killStreak: 0, invincibleTimer: 0,
+      bombInventory: { regular: 3, smell: 0, die: 0, time: 0 }, bombs: 3 };
     let isPlaying = false; let bullets = []; const keys = { w: false, a: false, d: false, fire: false };
     let damageNumbers = []; let screenShake = 0; let killFeed = []; let coinParticles = []; let streakAnnounce = { text: '', opacity: 0 }; let weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
 
@@ -356,7 +389,7 @@
         socket.on('newPlayer', (playerInfo) => { networkPlayers[playerInfo.id] = playerInfo.player; networkPlayers[playerInfo.id].targetX = playerInfo.player.x; networkPlayers[playerInfo.id].targetY = playerInfo.player.y; networkPlayers[playerInfo.id].localHealth = playerInfo.player.health; networkPlayers[playerInfo.id].countedKill = false; });
         socket.on('playerMoved', (playerInfo) => { if (networkPlayers[playerInfo.id]) { let np = networkPlayers[playerInfo.id]; np.targetX = playerInfo.player.x; np.targetY = playerInfo.player.y; np.aimAngle = playerInfo.player.aimAngle; np.health = playerInfo.player.health; np.weapon = playerInfo.player.weapon; if (playerInfo.player.health === 100) { np.localHealth = 100; np.countedKill = false; } else if (np.localHealth === undefined || playerInfo.player.health < np.localHealth) np.localHealth = playerInfo.player.health; } });
         socket.on('networkBullet', (b) => { networkBullets.push(b); });
-        socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; });
+        socket.on('playerDisconnected', (id) => { delete networkPlayers[id]; if (voicePeers[id]) { voicePeers[id].pc?.close(); if (voicePeers[id].audio) voicePeers[id].audio.remove(); delete voicePeers[id]; updateVoicePeersUI(); } });
         socket.on('reconnect_failed', () => { loginStatus.innerText = "Server unreachable."; loginStatus.style.color = "#e74c3c"; isOnline = false; });
         socket.on('kicked', (data) => { isPlaying = false; document.exitPointerLock(); document.getElementById('kickedMsg').innerText = (data && data.reason) ? data.reason : 'Your callsign was claimed from another device.'; document.getElementById('kickedOverlay').classList.add('visible'); canvas.style.display = 'none'; leaderboardPanel.style.display = 'none'; hideAllMenus(); });
         socket.on('leaderboardUpdate', (topPlayers) => { publicLeaderboardData = topPlayers; let html = ''; topPlayers.forEach((p, index) => { const trophy = index === 0 ? '👑' : (index + 1) + '.'; html += `<tr><td class="lb-rank">${trophy}</td><td>${p.name}</td><td style="text-align:center; color:#55efc4; font-weight:700;">${p.bestStreak||0}</td><td style="text-align:right;">${p.totalKills||0}</td></tr>`; }); if (topPlayers.length === 0) html = '<tr><td colspan="4" style="text-align:center; padding-top:14px; font-family:monospace; color:#555;">No kills yet.</td></tr>'; document.getElementById('leaderboardBody').innerHTML = html; });
@@ -416,6 +449,7 @@
             }
             document.getElementById('roomMiniLeaderboard').style.display = 'block';
             resetRun();
+            if (voiceEnabled) document.getElementById('voiceChatBar').style.display = 'flex';
             if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
             if (!isTouchMode) canvas.requestPointerLock();
         });
@@ -459,6 +493,14 @@
         });
 
       } catch (err) { loginStatus.innerText = "Network Error."; isOnline = false; }
+
+      // ── VOICE CHAT SOCKET EVENTS (registered after socket created) ──
+      if (socket) {
+        socket.on('voiceOffer', async (d) => { if (voiceEnabled) await handleVoiceOffer(d.from, d.offer); });
+        socket.on('voiceAnswer', async (d) => { const peer = voicePeers[d.from]; if (peer?.pc && peer.pc.signalingState !== 'stable') await peer.pc.setRemoteDescription(new RTCSessionDescription(d.answer)); });
+        socket.on('voiceIceCandidate', async (d) => { const peer = voicePeers[d.from]; if (peer?.pc) { try { await peer.pc.addIceCandidate(new RTCIceCandidate(d.candidate)); } catch(e){} } });
+        socket.on('peerMuteState', (d) => { voiceSpeaking[d.from] = !d.muted; updateVoicePeersUI(); });
+      }
     }
 
     initNetwork();
@@ -707,7 +749,9 @@
       myPlayer.weapon = 'rifle'; myPlayer.weaponExpire = 0; myPlayer.shield = 0; myPlayer.speedBoostTimer = 0;
       myPlayer.killStreak = 0; myPlayer.invincibleTimer = Date.now() + 2500;
       myPlayer.bombs = 2;
-      bullets = []; networkBullets = []; damageNumbers = []; killFeed = []; coinParticles = []; bombs = []; explosions = [];
+      myPlayer.bombInventory = { regular: 3, smell: 0, die: 0, time: 0 };
+      activeBombType = 'regular';
+      bullets = []; networkBullets = []; damageNumbers = []; killFeed = []; coinParticles = []; bombs = []; explosions = []; smellClouds = []; stickyBombs = [];
       streakAnnounce = { text: '', opacity: 0 }; weaponPickupAnnounce = { text: '', opacity: 0, color: '#fff' };
       targetBiome = biomes[0]; currentSky = [...targetBiome.sky]; biomePopupName = "DEPLOYED"; biomePopupOpacity = 2.5;
       joyLeft.active = false; joyRight.active = false; keys.fire = false; keys.a = false; keys.d = false; keys.w = false;
@@ -717,10 +761,11 @@
       
       // Leaderboard only shows on death screen, not during gameplay (canvas mini-LB handles it)
       leaderboardPanel.style.display = 'none';
-      // Show bomb button on mobile in public mode
+      // Show bomb button on mobile
       const bb = document.getElementById('bombBtn');
-      if (isTouchMode && isPublicMode) { bb.style.display = 'flex'; document.getElementById('bombCount').innerText = myPlayer.bombs; }
-      else bb.style.display = 'none';
+      const bcb = document.getElementById('bombCycleBtn');
+      if (isTouchMode) { bb.style.display = 'flex'; bcb.style.display = 'flex'; updateBombUI(); }
+      else { bb.style.display = 'none'; bcb.style.display = 'none'; }
       
       buildMap(); initParticles(); gameLoop();
     }
@@ -739,6 +784,8 @@
       document.getElementById('roomMiniLeaderboard').style.display = 'none';
       canvas.style.display = 'none';
       document.getElementById('bombBtn').style.display = 'none';
+      document.getElementById('bombCycleBtn').style.display = 'none';
+      document.getElementById('voiceChatBar').style.display = 'none';
       // Update death screen based on mode
       if (!isPublicMode && matchState === 'playing') {
         document.getElementById('finalKillsText').innerText = `KILLS THIS MATCH: ${myPlayer.kills}`;
@@ -767,17 +814,30 @@
     function checkOverlap(nx, ny, nw, nh) { const PAD = 40; for (let obj of map) { if (obj.type === 'wall' || obj.type === 'floor') continue; if (nx < obj.x + obj.w + PAD && nx + nw + PAD > obj.x && ny < obj.y + obj.h + PAD && ny + nh + PAD > obj.y) return true; } return false; }
     function spawnPowerup(x, y, rand) { if (rand() > 0.45) return; const types = ['health', 'jetpack', 'shield', 'speed', 'shotgun', 'sniper']; const weights = [0.28, 0.18, 0.14, 0.12, 0.16, 0.12]; let rr = rand(), cum = 0; for (let i = 0; i < types.length; i++) { cum += weights[i]; if (rr < cum) { powerups.push({ x, y, w: 30, h: 30, type: types[i] }); return; } } powerups.push({ x, y, w: 30, h: 30, type: 'health' }); }
 
+    function spawnBombPickup(x, y, rand) {
+      if (rand() > 0.35) return; // ~35% chance
+      const types = ['regular', 'smell', 'die', 'time'];
+      const weights = [0.40, 0.25, 0.20, 0.15];
+      let rr = rand(), cum = 0;
+      let btype = 'regular';
+      for (let i = 0; i < types.length; i++) { cum += weights[i]; if (rr < cum) { btype = types[i]; break; } }
+      bombPickups.push({ x, y, w: 28, h: 28, bombType: btype, amount: btype === 'die' ? 1 : 2, pulse: Math.random() * Math.PI * 2 });
+    }
+
     function buildMap() {
-      map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth,y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight-50, w: worldWidth, h: 50, type: "floor" } ]; powerups = []; let rand = mulberry32(12345);
+      map = [ { x: -50, y: 0, w: 50, h: worldHeight, type: "wall" }, { x: worldWidth,y: 0, w: 50, h: worldHeight, type: "wall" }, { x: 0, y: -50, w: worldWidth, h: 50, type: "wall" }, { x: 0, y: worldHeight-50, w: worldWidth, h: 50, type: "floor" } ]; powerups = []; bombPickups = []; let rand = mulberry32(12345);
       let cx = 200; while (cx < worldWidth - 400) { let pw = 130 + rand() * 270, py = worldHeight - 130 - rand() * 520; if (!checkOverlap(cx, py, pw, 28)) { map.push({ x: cx, y: py, w: pw, h: 28, type: "plat", tier: 0 }); if (rand() > 0.45) { let cw = 38 + rand() * 28, ch = 50 + rand() * 40; if(!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) { map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py - 32, rand); } cx += pw + 40 + rand() * 140; }
       cx = 350; while (cx < worldWidth - 600) { let pw = 110 + rand() * 200, py = worldHeight - 650 - rand() * 380; if (!checkOverlap(cx, py, pw, 24)) { let isMoving = rand() > 0.68; let plat = { x: cx, y: py, w: pw, h: 24, type: "plat", tier: 1 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 110 + rand() * 220; plat.moveSpeed = 0.00045 + rand() * 0.00065; plat.movePhase = rand() * Math.PI * 2; } map.push(plat); if (rand() > 0.5) { let cw = 32 + rand() * 24, ch = 28 + rand() * 28; if (!checkOverlap(cx + pw/2 - cw/2, py - ch, cw, ch)) { map.push({ x: cx + pw/2 - cw/2, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py - 32, rand); } cx += pw + 80 + rand() * 240; }
       cx = 500; while (cx < worldWidth - 800) { let pw = 90 + rand() * 170, py = worldHeight - 1100 - rand() * 480; if (!checkOverlap(cx, py, pw, 22)) { let isMoving = rand() > 0.45; let plat = { x: cx, y: py, w: pw, h: 22, type: "plat", tier: 2 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 90 + rand() * 200; plat.moveSpeed = 0.0006 + rand() * 0.001; plat.movePhase = rand() * Math.PI * 2; plat.moveY = rand() > 0.55; if (plat.moveY) { plat.moveBaseY = py; plat.moveRangeY = 60 + rand() * 100; plat.moveSpeedY = 0.0004 + rand() * 0.0006; plat.movePhaseY = rand() * Math.PI * 2; } } map.push(plat); spawnPowerup(cx + pw * rand(), py - 32, rand); } cx += pw + 120 + rand() * 320; }
+      let brandBP = mulberry32(99999);
       cx = 700; while (cx < worldWidth - 1000) { let pw = 120 + rand() * 280, py = 120 + rand() * 420; if (!checkOverlap(cx, py, pw, 20)) { let isMoving = rand() > 0.6; let plat = { x: cx, y: py, w: pw, h: 20, type: "plat", tier: 3 }; if (isMoving) { plat.moving = true; plat.moveBase = cx; plat.moveRange = 80 + rand() * 180; plat.moveSpeed = 0.0003 + rand() * 0.0005; plat.movePhase = rand() * Math.PI * 2; } map.push(plat); if (rand() > 0.5) { let cw = 30 + rand() * 25, ch = 20 + rand() * 24; if(!checkOverlap(cx + pw * rand() - 15, py - ch, cw, ch)) { map.push({ x: cx + pw * rand() - 15, y: py - ch, w: cw, h: ch, type: "cover" }); } } spawnPowerup(cx + pw * rand(), py + 22, rand); } cx += pw + 220 + rand() * 500; }
+      // Bomb pickup spawning across the map
+      for (let bpx = 500; bpx < worldWidth - 500; bpx += 600 + brandBP() * 800) { let bpy = worldHeight - 200 - brandBP() * 1200; spawnBombPickup(bpx + brandBP() * 100, bpy, brandBP); }
       let tx = 600; while (tx < worldWidth - 500) { let tH = 200 + rand() * 600, tY = worldHeight - 700 - rand() * 600, tW = 20 + rand() * 15; if (!checkOverlap(tx, tY, tW, tH)) { map.push({ x: tx, y: tY, w: tW, h: tH, type: "cover" }); for (let gy = tY + 40; gy < tY + tH - 40; gy += 100 + rand() * 80) { if(!checkOverlap(tx - 80 - rand() * 40, gy, 70 + rand() * 30, 16)) { map.push({ x: tx - 80 - rand() * 40, y: gy, w: 70 + rand() * 30, h: 16, type: "plat", tier: 1 }); } } } tx += 500 + rand() * 900; }
       let fx = 1000; while (fx < worldWidth - 1200) { let baseY = 400 + rand() * 800, clusterX = fx; for (let ci = 0; ci < 3 + Math.floor(rand() * 3); ci++) { let pw = 80 + rand() * 120, py = baseY + (rand() - 0.5) * 200; if(!checkOverlap(clusterX, py, pw, 20)) { map.push({ x: clusterX, y: py, w: pw, h: 20, type: "plat", tier: 2 }); spawnPowerup(clusterX + pw/2 - 15, py - 32, rand); } clusterX += pw + 30 + rand() * 60; } fx += 1200 + rand() * 1500; }
     }
 
-    window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; if (k==='g') throwBomb(); });
+    window.addEventListener('keydown', (e) => { if (!isPlaying) return; const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=true; if (k==='d'||k==='arrowright') keys.d=true; if (k==='w'||k==='arrowup'||k===' ') keys.w=true; if (k==='g') throwBomb(); if (k==='b') cycleBombType(); });
     window.addEventListener('keyup', (e) => { const k = e.key.toLowerCase(); if (k==='a'||k==='arrowleft') keys.a=false; if (k==='d'||k==='arrowright') keys.d=false; if (k==='w'||k==='arrowup'||k===' ') keys.w=false; });
     canvas.addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas) { mouseX += e.movementX; mouseY += e.movementY; mouseX = Math.max(0, Math.min(canvas.width, mouseX)); mouseY = Math.max(0, Math.min(canvas.height, mouseY)); } else { mouseX = e.clientX; mouseY = e.clientY; } });
     canvas.addEventListener('mousedown', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = true; }); canvas.addEventListener('mouseup', () => { if (!isPlaying) return; if (!joyRight.active) keys.fire = false; });
@@ -789,10 +849,11 @@
     document.getElementById('bombBtn').addEventListener('touchstart', (e) => {
       e.preventDefault(); e.stopPropagation();
       throwBomb();
-      const bc = document.getElementById('bombCount');
-      bc.innerText = myPlayer.bombs;
-      const bb = document.getElementById('bombBtn');
-      bb.style.opacity = myPlayer.bombs === 0 ? '0.4' : '1';
+    }, { passive: false });
+
+    document.getElementById('bombCycleBtn').addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      cycleBombType();
     }, { passive: false });
 
     function shoot() {
@@ -806,67 +867,116 @@
       }
     }
 
+    function updateBombUI() {
+      const bt = BOMB_TYPES[activeBombType];
+      const count = myPlayer.bombInventory[activeBombType];
+      document.getElementById('bombIcon').innerText = bt.icon;
+      document.getElementById('bombTypeLabel').innerText = bt.label;
+      document.getElementById('bombCount').innerText = count;
+      const bb = document.getElementById('bombBtn');
+      bb.style.opacity = count === 0 ? '0.4' : '1';
+      bb.style.borderColor = count === 0 ? 'rgba(231,76,60,0.5)' : `${bt.color}99`;
+    }
+
+    function cycleBombType() {
+      const types = Object.keys(BOMB_TYPES);
+      let idx = types.indexOf(activeBombType);
+      // Find next type that has ammo (or just cycle through all)
+      for (let i = 1; i <= types.length; i++) {
+        const next = types[(idx + i) % types.length];
+        if (myPlayer.bombInventory[next] > 0) { activeBombType = next; break; }
+      }
+      updateBombUI();
+      killFeed.push({ text: `💣 ${BOMB_TYPES[activeBombType].label} BOMB`, timer: 1.5, color: BOMB_TYPES[activeBombType].color });
+    }
+
     function throwBomb() {
-      if (!isPlaying || myPlayer.bombs <= 0) return;
+      if (!isPlaying) return;
+      const bt = BOMB_TYPES[activeBombType];
+      // Find a type with ammo if current empty
+      if (myPlayer.bombInventory[activeBombType] <= 0) {
+        const types = Object.keys(BOMB_TYPES);
+        const alt = types.find(t => myPlayer.bombInventory[t] > 0);
+        if (!alt) { killFeed.push({ text: `💣 NO BOMBS LEFT`, timer: 1.5, color: '#e74c3c' }); return; }
+        activeBombType = alt; updateBombUI();
+      }
       const now = Date.now();
-      if (now - lastBombTime < 400) return; // prevent spam
+      if (now - lastBombTime < 400) return;
       lastBombTime = now;
-      myPlayer.bombs--;
-      const spd = 11;
-      bombs.push({
+      myPlayer.bombInventory[activeBombType]--;
+      myPlayer.bombs = Object.values(myPlayer.bombInventory).reduce((a,b) => a+b, 0);
+      const spd = activeBombType === 'time' ? 9 : 11;
+      const bomb = {
         x: myPlayer.x + 20, y: myPlayer.y + 20,
         vx: Math.cos(myPlayer.aimAngle) * spd,
         vy: Math.sin(myPlayer.aimAngle) * spd - 2,
-        timer: 2200, bounces: 0, ownerId: socket?.id || 'local'
-      });
-      killFeed.push({ text: `💣 BOMB THROWN [${myPlayer.bombs} left]`, timer: 2.0, color: '#f1c40f' });
-      const bb = document.getElementById('bombBtn');
-      const bc = document.getElementById('bombCount');
-      bc.innerText = myPlayer.bombs;
-      if (myPlayer.bombs === 0) bb.style.opacity = '0.4';
+        timer: bt.timer, bounces: 0, ownerId: socket?.id || 'local',
+        type: activeBombType, stuck: false
+      };
+      if (activeBombType === 'time') {
+        stickyBombs.push({ ...bomb, armed: false, armDelay: 800, createdAt: now });
+      } else {
+        bombs.push(bomb);
+      }
+      killFeed.push({ text: `${bt.icon} ${bt.label} THROWN [${myPlayer.bombInventory[activeBombType]} left]`, timer: 2.0, color: bt.color });
+      updateBombUI();
     }
 
     function explodeBomb(b) {
-      const RADIUS = 130, DAMAGE = 65;
-      explosions.push({ x: b.x, y: b.y, r: 0, maxR: RADIUS, opacity: 1.0 });
-      screenShake = 1.8;
-      killFeed.push({ text: `💥 BOOM!`, timer: 2.2, color: '#f1c40f' });
+      const bType = b.type || 'regular';
+      const bt = BOMB_TYPES[bType];
+      const RADIUS = bt.radius, DAMAGE = bt.damage;
+
+      if (bType === 'smell') {
+        // Create lingering gas cloud instead of instant explosion
+        smellClouds.push({ x: b.x, y: b.y, radius: RADIUS, maxRadius: RADIUS, opacity: 0.75, life: 5.0, ownerId: b.ownerId });
+        killFeed.push({ text: `💨 GAS CLOUD DEPLOYED!`, timer: 2.5, color: '#2ecc71' });
+        screenShake = 0.6;
+        return;
+      }
+
+      // Explosion visual
+      const exColor = bType === 'die' ? '#e74c3c' : bType === 'time' ? '#a29bfe' : '#f1c40f';
+      explosions.push({ x: b.x, y: b.y, r: 0, maxR: RADIUS, opacity: 1.0, color: exColor });
+      screenShake = bType === 'die' ? 2.5 : 1.8;
+      const msgs = { regular: '💥 BOOM!', die: '☠️ DEATH BLAST!', time: '⏱️ TRIGGERED!' };
+      killFeed.push({ text: msgs[bType] || '💥 BOOM!', timer: 2.2, color: exColor });
+
+      // Damage function — die bomb has flat damage (no falloff)
+      const calcDmg = (d) => bType === 'die' ? DAMAGE : Math.floor(DAMAGE * (1 - d / RADIUS));
 
       // Damage self
       const selfDist = Math.hypot(myPlayer.x + 20 - b.x, myPlayer.y + 20 - b.y);
       if (selfDist < RADIUS && myPlayer.health > 0 && myPlayer.invincibleTimer <= Date.now()) {
-        const dmg = Math.floor(DAMAGE * 0.5 * (1 - selfDist / RADIUS)); // 50% self-damage
+        const dmg = Math.floor(calcDmg(selfDist) * 0.5);
         if (dmg > 0) { myPlayer.health -= dmg; damageNumbers.push({ x: myPlayer.x+20, y: myPlayer.y-10, value: -dmg, vy: -3, opacity: 2.2, color: '#e17055', size: 18 }); if (myPlayer.health <= 0) killPlayer(); }
       }
 
-      // Damage network players
       if (b.ownerId === (socket?.id || 'local')) {
         for (let id in networkPlayers) {
           const np = networkPlayers[id]; if (np.health <= 0) continue;
           const d = Math.hypot(np.x + 20 - b.x, np.y + 20 - b.y);
           if (d < RADIUS) {
             if (np.localHealth === undefined) np.localHealth = np.health;
-            const dmg = Math.floor(DAMAGE * (1 - d / RADIUS));
+            const dmg = calcDmg(d);
             np.localHealth -= dmg;
-            damageNumbers.push({ x: np.x + 20, y: np.y - 10, value: dmg, vy: -2.5, opacity: 2.2, color: '#f1c40f', size: 18 });
+            damageNumbers.push({ x: np.x + 20, y: np.y - 10, value: dmg, vy: -2.5, opacity: 2.2, color: exColor, size: 18 });
             if (np.localHealth <= 0 && !np.countedKill) {
               np.countedKill = true; myPlayer.kills++; myPlayer.killStreak++;
-              killFeed.push({ text: `💣 YOU → ${np.name}`, timer: 5.0, color: '#ff4757' });
+              killFeed.push({ text: `${bt.icon} YOU → ${np.name}`, timer: 5.0, color: '#ff4757' });
               spawnCoins(np.x + 20, np.y + 20); checkStreak(myPlayer.killStreak);
               if (!isPublicMode && matchState === 'playing' && isOnline && socket && socket.connected) socket.emit('reportKill', { victim: np.name });
               else if (isPublicMode) socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
             }
           }
         }
-        // Damage bots in public mode
         if (isPublicMode) {
           npcs.forEach(npc => {
             if (npc.health <= 0) return;
             const d = Math.hypot(npc.x + 20 - b.x, npc.y + 20 - b.y);
-            if (d < RADIUS) { socket.emit('damageBot', { botId: npc.id, damage: Math.floor(DAMAGE * (1 - d / RADIUS)) }); }
+            if (d < RADIUS) socket.emit('damageBot', { botId: npc.id, damage: calcDmg(d) });
           });
         }
-        // Tell server to relay to other players
         if (isOnline && socket && socket.connected) socket.emit('bombExplode', { x: b.x, y: b.y, radius: RADIUS, damage: DAMAGE, ownerId: b.ownerId });
       }
     }
@@ -888,7 +998,7 @@
 
       currentSky[0] += (targetBiome.sky[0] - currentSky[0]) * 0.05; currentSky[1] += (targetBiome.sky[1] - currentSky[1]) * 0.05; currentSky[2] += (targetBiome.sky[2] - currentSky[2]) * 0.05; updateParticles();
 
-      let spd = myPlayer.speed; if (myPlayer.speedBoostTimer > t) spd *= 1.65;
+      let spd = myPlayer.speed * (isTouchMode ? 0.58 : 1); if (myPlayer.speedBoostTimer > t) spd *= 1.65;
       let prevX = myPlayer.x; if (keys.a) myPlayer.x -= spd; if (keys.d) myPlayer.x += spd;
       for (let obj of map) { if (myPlayer.x < obj.x+obj.w && myPlayer.x+myPlayer.width > obj.x && myPlayer.y < obj.y+obj.h && myPlayer.y+myPlayer.height > obj.y) myPlayer.x = prevX; }
       myPlayer.dy += myPlayer.gravity; let hasUnlimitedJetpack = myPlayer.unlimitedFuelTimer > t;
@@ -996,6 +1106,98 @@
         if (ex.opacity <= 0) explosions.splice(i, 1);
       }
 
+      // ── STICKY BOMB PHYSICS ──
+      for (let i = stickyBombs.length - 1; i >= 0; i--) {
+        const b = stickyBombs[i];
+        if (!b.stuck) {
+          b.vy += 0.45; b.x += b.vx; b.y += b.vy;
+          for (const obj of map) {
+            if (b.x < obj.x+obj.w && b.x+10 > obj.x && b.y < obj.y+obj.h && b.y+10 > obj.y) {
+              b.stuck = true; b.vx = 0; b.vy = 0; break;
+            }
+          }
+          if (b.x < 0 || b.x > worldWidth) { b.stuck = true; b.vx = 0; b.vy = 0; }
+        }
+        // Arm after delay
+        if (!b.armed && t - b.createdAt > b.armDelay) b.armed = true;
+        // Trigger when enemy is near
+        if (b.armed && b.ownerId === (socket?.id || 'local')) {
+          let triggered = false;
+          const triggerR = 120;
+          for (let id in networkPlayers) {
+            const np = networkPlayers[id]; if (np.health <= 0) continue;
+            if (Math.hypot(np.x + 20 - b.x, np.y + 20 - b.y) < triggerR) { triggered = true; break; }
+          }
+          if (!triggered && isPublicMode) {
+            for (const npc of npcs) { if (npc.health <= 0) continue; if (Math.hypot(npc.x + 20 - b.x, npc.y + 20 - b.y) < triggerR) { triggered = true; break; } }
+          }
+          if (triggered) { explodeBomb({ ...b, type: 'time' }); stickyBombs.splice(i, 1); continue; }
+        }
+        // Safety timeout (15 seconds)
+        if (t - b.createdAt > 15000) { explodeBomb({ ...b, type: 'time' }); stickyBombs.splice(i, 1); }
+      }
+
+      // ── SMELL CLOUD DAMAGE & FADE ──
+      for (let i = smellClouds.length - 1; i >= 0; i--) {
+        const sc = smellClouds[i];
+        sc.life -= 0.014;
+        sc.opacity = Math.min(0.75, sc.life * 0.2);
+        sc.radius = sc.maxRadius * (0.5 + Math.sin(t * 0.002) * 0.12 + (1 - sc.life / 5) * 0.5);
+        if (sc.life <= 0) { smellClouds.splice(i, 1); continue; }
+        // Damage player if inside cloud and not owner
+        if (sc.ownerId !== (socket?.id || 'local')) {
+          const d = Math.hypot(myPlayer.x + 20 - sc.x, myPlayer.y + 20 - sc.y);
+          if (d < sc.radius && myPlayer.health > 0 && myPlayer.invincibleTimer <= t && Math.floor(t / 500) !== Math.floor((t - 16) / 500)) {
+            const dmg = BOMB_TYPES.smell.damage;
+            myPlayer.health -= dmg; damageNumbers.push({ x: myPlayer.x+20, y: myPlayer.y-10, value: -dmg, vy: -2, opacity: 1.8, color: '#2ecc71', size: 14 });
+            if (myPlayer.health <= 0) killPlayer();
+          }
+        }
+        // Damage network players if I own the cloud
+        if (sc.ownerId === (socket?.id || 'local')) {
+          for (let id in networkPlayers) {
+            const np = networkPlayers[id]; if (np.health <= 0) continue;
+            const d = Math.hypot(np.x + 20 - sc.x, np.y + 20 - sc.y);
+            if (d < sc.radius && Math.floor(t / 500) !== Math.floor((t - 16) / 500)) {
+              if (np.localHealth === undefined) np.localHealth = np.health;
+              const dmg = BOMB_TYPES.smell.damage;
+              np.localHealth -= dmg;
+              damageNumbers.push({ x: np.x+20, y: np.y-10, value: dmg, vy: -2, opacity: 1.8, color: '#2ecc71', size: 14 });
+              if (np.localHealth <= 0 && !np.countedKill) {
+                np.countedKill = true; myPlayer.kills++; myPlayer.killStreak++;
+                killFeed.push({ text: `💨 YOU → ${np.name}`, timer: 5.0, color: '#2ecc71' });
+                spawnCoins(np.x+20, np.y+20); checkStreak(myPlayer.killStreak);
+                if (!isPublicMode && matchState === 'playing' && isOnline && socket && socket.connected) socket.emit('reportKill', { victim: np.name });
+                else if (isPublicMode) socket.emit('updateScore', { name: myPlayer.name, kills: myPlayer.kills });
+              }
+            }
+          }
+          if (isPublicMode) {
+            for (const npc of npcs) {
+              if (npc.health <= 0) continue;
+              const d = Math.hypot(npc.x + 20 - sc.x, npc.y + 20 - sc.y);
+              if (d < sc.radius && Math.floor(t / 500) !== Math.floor((t - 16) / 500)) {
+                socket.emit('damageBot', { botId: npc.id, damage: BOMB_TYPES.smell.damage });
+              }
+            }
+          }
+        }
+      }
+
+      // ── BOMB PICKUP COLLECTION ──
+      for (let i = bombPickups.length - 1; i >= 0; i--) {
+        const bp = bombPickups[i];
+        if (myPlayer.x < bp.x+bp.w && myPlayer.x+myPlayer.width > bp.x && myPlayer.y < bp.y+bp.h && myPlayer.y+myPlayer.height > bp.y) {
+          const btype = bp.bombType;
+          myPlayer.bombInventory[btype] = (myPlayer.bombInventory[btype] || 0) + bp.amount;
+          myPlayer.bombs = Object.values(myPlayer.bombInventory).reduce((a,b)=>a+b, 0);
+          const bt = BOMB_TYPES[btype];
+          killFeed.push({ text: `${bt.icon} +${bp.amount} ${bt.label} BOMB`, timer: 3.0, color: bt.color });
+          if (isTouchMode) updateBombUI();
+          bombPickups.splice(i, 1);
+        }
+      }
+
       camera.x = Math.max(0, Math.min(myPlayer.x + myPlayer.width/2 - effW/2, worldWidth - effW)); camera.y = Math.max(0, Math.min(myPlayer.y + myPlayer.height/2 - effH/2, worldHeight - effH));
     }
 
@@ -1012,6 +1214,68 @@
       ctx.save(); ctx.scale(currentZoom, currentZoom); ctx.translate(-camera.x + shakeX, -camera.y + shakeY);
       
       let effW = canvas.width / currentZoom; const viewLeft = camera.x - 200; const viewRight = camera.x + effW + 200;
+
+      // ── DRAW BOMB PICKUPS ──
+      for (const bp of bombPickups) {
+        if (bp.x > viewRight || bp.x+bp.w < viewLeft) continue;
+        const bt = BOMB_TYPES[bp.bombType];
+        const pulse = 0.7 + Math.sin(t * 0.004 + bp.pulse) * 0.3;
+        ctx.save(); ctx.globalAlpha = pulse;
+        // Crate body
+        ctx.fillStyle = '#1a1a2e'; ctx.fillRect(bp.x, bp.y, bp.w, bp.h);
+        ctx.strokeStyle = bt.color; ctx.lineWidth = 1.5; ctx.strokeRect(bp.x, bp.y, bp.w, bp.h);
+        // Icon
+        ctx.font = '14px Arial'; ctx.textAlign = 'center'; ctx.fillText(bt.icon, bp.x + bp.w/2, bp.y + 18);
+        ctx.restore();
+        // Outer glow ring
+        ctx.save(); ctx.globalAlpha = 0.15 + Math.sin(t * 0.005) * 0.1;
+        ctx.strokeStyle = bt.color; ctx.lineWidth = 3;
+        ctx.strokeRect(bp.x - 4, bp.y - 4, bp.w + 8, bp.h + 8); ctx.restore();
+      }
+
+      // ── DRAW SMELL CLOUDS ──
+      for (const sc of smellClouds) {
+        ctx.save();
+        const grad = ctx.createRadialGradient(sc.x, sc.y, 0, sc.x, sc.y, sc.radius);
+        grad.addColorStop(0, `rgba(46,204,113,${sc.opacity * 0.8})`);
+        grad.addColorStop(0.5, `rgba(46,204,113,${sc.opacity * 0.45})`);
+        grad.addColorStop(1, `rgba(0,180,80,0)`);
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(sc.x, sc.y, sc.radius, 0, Math.PI*2); ctx.fill();
+        // Toxic bubbles
+        for (let bi = 0; bi < 5; bi++) {
+          const ang = (bi / 5) * Math.PI * 2 + t * 0.001;
+          const bx2 = sc.x + Math.cos(ang) * sc.radius * 0.5, by2 = sc.y + Math.sin(ang) * sc.radius * 0.5;
+          ctx.globalAlpha = sc.opacity * 0.5; ctx.fillStyle = '#00b894';
+          ctx.beginPath(); ctx.arc(bx2, by2, 5 + Math.sin(t * 0.003 + bi) * 2, 0, Math.PI*2); ctx.fill();
+        }
+        ctx.globalAlpha = sc.opacity * 0.6; ctx.fillStyle = '#2ecc71';
+        ctx.font = `${Math.floor(sc.radius * 0.18)}px Arial`; ctx.textAlign = 'center';
+        ctx.fillText('☣', sc.x, sc.y + sc.radius * 0.1); ctx.restore();
+      }
+
+      // ── DRAW STICKY BOMBS ──
+      for (const b of stickyBombs) {
+        ctx.save();
+        const pulse = b.armed ? (0.6 + Math.sin(t * 0.015) * 0.4) : 0.5;
+        ctx.globalAlpha = 1;
+        // Glow if armed
+        if (b.armed) {
+          ctx.globalAlpha = 0.25 + Math.sin(t * 0.02) * 0.2;
+          ctx.fillStyle = '#a29bfe'; ctx.beginPath(); ctx.arc(b.x + 5, b.y + 5, 18, 0, Math.PI*2); ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+        ctx.fillStyle = b.armed ? '#6c5ce7' : '#636e72';
+        ctx.strokeStyle = b.armed ? '#a29bfe' : '#74b9ff'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(b.x + 5, b.y + 5, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        // Spike/sticky indicator
+        ctx.strokeStyle = b.armed ? '#a29bfe' : '#74b9ff'; ctx.lineWidth = 1;
+        for (let si = 0; si < 4; si++) {
+          const ang = (si / 4) * Math.PI * 2;
+          ctx.beginPath(); ctx.moveTo(b.x+5+Math.cos(ang)*7, b.y+5+Math.sin(ang)*7); ctx.lineTo(b.x+5+Math.cos(ang)*11, b.y+5+Math.sin(ang)*11); ctx.stroke();
+        }
+        ctx.font = '8px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = 'white';
+        ctx.fillText(b.armed ? '⏱' : '🔒', b.x + 5, b.y - 5); ctx.restore();
+      }
 
       for (let p of powerups) {
         if (p.x > viewRight || p.x+p.w < viewLeft) continue; let pulse = 0.75 + Math.sin(t * 0.005 + p.x * 0.01) * 0.25; ctx.save(); ctx.globalAlpha = pulse;
@@ -1060,42 +1324,40 @@
       // ── DRAW EXPLOSIONS ──
       for (const ex of explosions) {
         ctx.save(); ctx.globalAlpha = Math.max(0, ex.opacity);
+        const innerC = ex.color === '#e74c3c' ? 'rgba(255,80,80,0.95)' : ex.color === '#a29bfe' ? 'rgba(180,160,255,0.95)' : 'rgba(255,255,255,0.95)';
         const grad = ctx.createRadialGradient(ex.x, ex.y, 0, ex.x, ex.y, ex.r);
-        grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-        grad.addColorStop(0.25, 'rgba(255,220,50,0.85)');
-        grad.addColorStop(0.6, 'rgba(231,76,60,0.6)');
+        grad.addColorStop(0, innerC);
+        grad.addColorStop(0.25, ex.color === '#e74c3c' ? 'rgba(231,76,60,0.85)' : 'rgba(255,220,50,0.85)');
+        grad.addColorStop(0.6, 'rgba(80,0,0,0.4)');
         grad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI*2); ctx.fill();
-        // Shockwave ring
-        ctx.strokeStyle = `rgba(241,196,15,${ex.opacity * 0.7})`; ctx.lineWidth = 3;
+        ctx.strokeStyle = `rgba(${ex.color === '#a29bfe'?'162,155,254':'241,196,15'},${ex.opacity * 0.7})`; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(ex.x, ex.y, ex.r * 0.9, 0, Math.PI*2); ctx.stroke();
         ctx.restore();
       }
 
       // ── DRAW BOMBS ──
       for (const b of bombs) {
-        const pulse = 1 - (b.timer / 2200); // 0→1 as it approaches explosion
+        const bt = BOMB_TYPES[b.type || 'regular'];
+        const pulse = 1 - (b.timer / bt.timer);
         ctx.save();
-        // Danger glow when about to explode
         if (pulse > 0.6) {
           ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.03) * 0.25;
-          ctx.fillStyle = '#ff4757'; ctx.beginPath();
+          ctx.fillStyle = bt.color; ctx.beginPath();
           ctx.arc(b.x + 5, b.y + 5, 20, 0, Math.PI*2); ctx.fill();
         }
         ctx.globalAlpha = 1;
-        // Body
-        ctx.fillStyle = pulse > 0.6 ? '#e74c3c' : '#2d3436';
-        ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(b.x + 5, b.y + 5, 7, 0, Math.PI*2);
-        ctx.fill(); ctx.stroke();
-        // Fuse
-        ctx.strokeStyle = pulse > 0.6 ? '#ff4757' : '#f1c40f'; ctx.lineWidth = 1.5;
+        ctx.fillStyle = pulse > 0.6 ? bt.color : '#2d3436';
+        ctx.strokeStyle = bt.color; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(b.x + 5, b.y + 5, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = pulse > 0.6 ? bt.color : '#f1c40f'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(b.x + 5, b.y - 2);
-        ctx.quadraticCurveTo(b.x + 11, b.y - 10, b.x + 8, b.y - 15);
-        ctx.stroke();
-        // Spark at fuse tip
+        ctx.quadraticCurveTo(b.x + 11, b.y - 10, b.x + 8, b.y - 15); ctx.stroke();
         ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5 + Math.random() * 0.5;
         ctx.beginPath(); ctx.arc(b.x + 8, b.y - 15, 2.5, 0, Math.PI*2); ctx.fill();
+        // Type icon on bomb
+        ctx.globalAlpha = 0.9; ctx.font = '7px Arial'; ctx.textAlign = 'center';
+        ctx.fillText(bt.icon, b.x + 5, b.y + 9);
         ctx.restore();
       }
       
@@ -1202,6 +1464,85 @@
 
       drawJoystick(joyLeft, '#3498db'); drawJoystick(joyRight, '#e74c3c');
     }
+
+    // ── VOICE CHAT (WebRTC) ──
+    let voiceEnabled = false, localStream = null, micMuted = false;
+    const voicePeers = {}; // peerId → { pc: RTCPeerConnection, audio: HTMLAudioElement }
+    const voiceSpeaking = {}; // peerId → boolean
+
+    async function startVoiceChat() {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        voiceEnabled = true;
+        document.getElementById('voiceChatBar').style.display = 'flex';
+        document.getElementById('lobbyVoiceLabel').innerText = 'Voice Chat ON';
+        document.getElementById('lobbyVoiceToggle').classList.add('active');
+        // Connect to all current room peers
+        const roomPeerIds = Object.keys(networkPlayers);
+        for (const pid of roomPeerIds) await createVoiceOffer(pid);
+      } catch (e) {
+        alert('Mic access denied or unavailable: ' + e.message);
+      }
+    }
+
+    function stopVoiceChat() {
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      for (const pid in voicePeers) { voicePeers[pid].pc.close(); if (voicePeers[pid].audio) voicePeers[pid].audio.remove(); delete voicePeers[pid]; }
+      voiceEnabled = false;
+      document.getElementById('voiceChatBar').style.display = 'none';
+      document.getElementById('lobbyVoiceLabel').innerText = 'Enable Voice Chat';
+      document.getElementById('lobbyVoiceToggle').classList.remove('active');
+    }
+
+    function toggleMic() {
+      if (!localStream) return;
+      micMuted = !micMuted;
+      localStream.getAudioTracks().forEach(t => t.enabled = !micMuted);
+      const btn = document.getElementById('voiceMicBtn');
+      btn.classList.toggle('muted', micMuted);
+      btn.innerText = micMuted ? '🔇' : '🎙️';
+      if (socket && socket.connected) socket.emit('voiceMuteState', { muted: micMuted });
+    }
+
+    async function createVoiceOffer(peerId) {
+      if (voicePeers[peerId] || !localStream || !socket) return;
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      voicePeers[peerId] = { pc, audio: null };
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      pc.ontrack = (e) => { const audio = new Audio(); audio.srcObject = e.streams[0]; audio.autoplay = true; voicePeers[peerId].audio = audio; updateVoicePeersUI(); };
+      pc.onicecandidate = (e) => { if (e.candidate && socket) socket.emit('voiceIceCandidate', { to: peerId, candidate: e.candidate }); };
+      const offer = await pc.createOffer(); await pc.setLocalDescription(offer);
+      socket.emit('voiceOffer', { to: peerId, offer });
+    }
+
+    async function handleVoiceOffer(fromId, offer) {
+      if (!localStream || !socket) return;
+      if (!voicePeers[fromId]) voicePeers[fromId] = { pc: null, audio: null };
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      voicePeers[fromId].pc = pc;
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      pc.ontrack = (e) => { const audio = new Audio(); audio.srcObject = e.streams[0]; audio.autoplay = true; voicePeers[fromId].audio = audio; updateVoicePeersUI(); };
+      pc.onicecandidate = (e) => { if (e.candidate && socket) socket.emit('voiceIceCandidate', { to: fromId, candidate: e.candidate }); };
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer(); await pc.setLocalDescription(answer);
+      socket.emit('voiceAnswer', { to: fromId, answer });
+    }
+
+    function updateVoicePeersUI() {
+      const el = document.getElementById('voicePeers');
+      const entries = Object.keys(voicePeers).map(pid => {
+        const np = networkPlayers[pid]; const name = np ? np.name : pid.slice(0,6);
+        const muted = voiceSpeaking[pid] === false;
+        return `<div class="voice-peer ${voiceSpeaking[pid] ? 'speaking' : ''} ${muted ? 'muted' : ''}" style="border-left:3px solid ${np?.color||'#7f8c8d'}">${muted?'🔇':'🔊'} ${name}</div>`;
+      });
+      el.innerHTML = entries.join('') || '<span style="color:#555;font-size:0.7rem">no peers</span>';
+    }
+
+    document.getElementById('lobbyVoiceToggle').addEventListener('click', async () => {
+      if (!voiceEnabled) await startVoiceChat();
+      else stopVoiceChat();
+    });
+    document.getElementById('voiceMicBtn').addEventListener('click', toggleMic);
 
     function gameLoop() { if (isPlaying) { update(); draw(); requestAnimationFrame(gameLoop); } }
   </script>
